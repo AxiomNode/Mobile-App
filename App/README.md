@@ -1,76 +1,105 @@
-This is a Kotlin Multiplatform project targeting Android, iOS, Web, Desktop (JVM).
+# AxiomNode — Kotlin Multiplatform Template
 
-* [/composeApp](./composeApp/src) is for code that will be shared across your Compose Multiplatform applications.
-  It contains several subfolders:
-  - [commonMain](./composeApp/src/commonMain/kotlin) is for code that’s common for all targets.
-  - Other folders are for Kotlin code that will be compiled for only the platform indicated in the folder name.
-    For example, if you want to use Apple’s CoreCrypto for the iOS part of your Kotlin app,
-    the [iosMain](./composeApp/src/iosMain/kotlin) folder would be the right place for such calls.
-    Similarly, if you want to edit the Desktop (JVM) specific part, the [jvmMain](./composeApp/src/jvmMain/kotlin)
-    folder is the appropriate location.
-
-* [/iosApp](./iosApp/iosApp) contains iOS applications. Even if you’re sharing your UI with Compose Multiplatform,
-  you need this entry point for your iOS app. This is also where you should add SwiftUI code for your project.
-
-### Build and Run Android Application
-
-To build and run the development version of the Android app, use the run configuration from the run widget
-in your IDE’s toolbar or build it directly from the terminal:
-- on macOS/Linux
-  ```shell
-  ./gradlew :composeApp:assembleDebug
-  ```
-- on Windows
-  ```shell
-  .\gradlew.bat :composeApp:assembleDebug
-  ```
-
-### Build and Run Desktop (JVM) Application
-
-To build and run the development version of the desktop app, use the run configuration from the run widget
-in your IDE’s toolbar or run it directly from the terminal:
-- on macOS/Linux
-  ```shell
-  ./gradlew :composeApp:run
-  ```
-- on Windows
-  ```shell
-  .\gradlew.bat :composeApp:run
-  ```
-
-### Build and Run Web Application
-
-To build and run the development version of the web app, use the run configuration from the run widget
-in your IDE's toolbar or run it directly from the terminal:
-- for the Wasm target (faster, modern browsers):
-  - on macOS/Linux
-    ```shell
-    ./gradlew :composeApp:wasmJsBrowserDevelopmentRun
-    ```
-  - on Windows
-    ```shell
-    .\gradlew.bat :composeApp:wasmJsBrowserDevelopmentRun
-    ```
-- for the JS target (slower, supports older browsers):
-  - on macOS/Linux
-    ```shell
-    ./gradlew :composeApp:jsBrowserDevelopmentRun
-    ```
-  - on Windows
-    ```shell
-    .\gradlew.bat :composeApp:jsBrowserDevelopmentRun
-    ```
-
-### Build and Run iOS Application
-
-To build and run the development version of the iOS app, use the run configuration from the run widget
-in your IDE’s toolbar or open the [/iosApp](./iosApp) directory in Xcode and run it from there.
+Kotlin Multiplatform project targeting **Android**, **iOS**, and **Desktop (JVM)**.
 
 ---
 
-Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html),
-[Compose Multiplatform](https://github.com/JetBrains/compose-multiplatform/#compose-multiplatform),
-[Kotlin/Wasm](https://kotl.in/wasm/)…
+## Toolchain
 
-We would appreciate your feedback on Compose/Web and Kotlin/Wasm in the public Slack channel [#compose-web](https://slack-chats.kotlinlang.org/c/compose-web).
-If you face any issues, please report them on [YouTrack](https://youtrack.jetbrains.com/newIssue?project=CMP).
+| Tool | Version |
+|---|---|
+| Kotlin | 2.3.20 |
+| Android Gradle Plugin | 9.0.1 |
+| Gradle Wrapper | 9.3.1 |
+| Compose Multiplatform | 1.10.3 |
+| Compose Material3 | 1.10.0-alpha05 |
+| Ktor | 3.4.2 |
+| Koin | 4.2.0 |
+| Room (Android/iOS/Desktop) | 2.8.1 |
+| Kamel | 1.0.9 |
+
+---
+
+## Local storage by platform
+
+| Platform | Storage | Location |
+|---|---|---|
+| **Android** | Room (SQLite) via KSP | DB file managed by Android |
+| **Desktop (JVM)** | Room (SQLite, bundled driver) | `~/.axiomnode/countries_room.db` |
+| **iOS** | Room (SQLite, bundled driver) | App Documents directory (`countries_room.db`) |
+
+---
+
+## Project structure
+
+```
+composeApp/src/
+├── commonMain/       ← shared logic, UI, domain, data interfaces
+├── androidMain/      ← Room datasource, Android entry point
+├── iosMain/          ← iOS entry point (Room datasource)
+├── jvmMain/          ← Desktop entry point (Room datasource)
+└── commonTest/       ← shared tests
+```
+
+* **[/composeApp](./composeApp/src)** — Compose Multiplatform shared code.
+* **[/iosApp](./iosApp/iosApp)** — SwiftUI entry point for iOS.
+
+---
+
+## Build and Run
+
+### Android
+
+```shell
+# macOS/Linux
+./gradlew :composeApp:assembleDebug
+# Windows
+.\gradlew.bat :composeApp:assembleDebug
+```
+
+### Desktop (JVM)
+
+```shell
+# macOS/Linux
+./gradlew :composeApp:run
+# Windows
+.\gradlew.bat :composeApp:run
+```
+
+### iOS
+
+Open **[/iosApp](./iosApp)** in Xcode and run from there, or use the IDE run configuration.
+
+---
+
+## Architecture notes
+
+- **DI** — Koin; `platformModule` provides the platform-specific `CountryDatasource`.
+- **Networking** — Ktor with platform engines (OkHttp / Darwin / Java).
+- **Image loading** — Kamel.
+- **Cache strategy** — sync-if-stale (24 h TTL) with `forceRefresh` option.
+
+---
+
+## ⚠️ Known deprecations (non-blocking)
+
+| Warning | Cause | Fix |
+|---|---|---|
+| `android.builtInKotlin=false` / `android.newDsl=false` | AGP 9 + KMP in same module | See migration below |
+| `KoinApplication(application=…)` deprecated | Koin 4.2 changed API | Update `App.kt` when starting |
+
+### Future: separate Android app module (recommended by AGP 9+)
+
+AGP 9.x recommends separating the `com.android.application` plugin into its own subproject:
+
+```
+:shared      ← KMP library (commonMain + iosMain + jvmMain + androidMain)
+:androidApp  ← com.android.application, depends on :shared
+```
+
+This removes all deprecation warnings and is required for AGP 10. Plan this refactor before the first public release.
+
+---
+
+Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html)
+and [Compose Multiplatform](https://github.com/JetBrains/compose-multiplatform/#compose-multiplatform).

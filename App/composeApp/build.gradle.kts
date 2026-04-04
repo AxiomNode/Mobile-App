@@ -1,6 +1,5 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -8,17 +7,8 @@ plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
-    alias(libs.plugins.composeHotReload)
-    alias(libs.plugins.sqlDelight)
     alias(libs.plugins.kotlinSerialization)
-}
-
-sqldelight {
-    databases {
-        create("CountriesDatabase") {
-            packageName.set("es.sebas1705.axiomnode")
-        }
-    }
+    alias(libs.plugins.ksp)
 }
 
 kotlin {
@@ -40,17 +30,6 @@ kotlin {
     }
     
     jvm()
-    
-    js {
-        browser()
-        binaries.executable()
-    }
-    
-    @OptIn(ExperimentalWasmDsl::class)
-    wasmJs {
-        browser()
-        binaries.executable()
-    }
     
     sourceSets {
         commonMain.dependencies {
@@ -75,9 +54,6 @@ kotlin {
             implementation(libs.ktor.client.logging)
             implementation(libs.ktor.client.auth)
 
-            // SQLDelight dependencies:
-            implementation(libs.sqldelight.runtime)
-
             // Koin dependencies:
             implementation(project.dependencies.platform(libs.koin.bom))
             implementation(libs.koin.core)
@@ -90,6 +66,13 @@ kotlin {
 
             implementation(libs.kotlinx.datetime)
 
+            // Room & SQLite (KMP):
+            implementation(libs.room.runtime)
+            implementation(libs.room.ktx)
+            implementation(libs.sqlite.bundled)
+
+            // Serialization
+            implementation(libs.kotlinx.serialization.json)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -102,8 +85,12 @@ kotlin {
             // Ktor dependencies:
             implementation(libs.ktor.client.okhttp)
 
-            // SQLDelight dependencies:
-            implementation(libs.sqldelight.android.driver)
+            // Room dependencies (Android specific):
+            implementation(libs.room.runtime)
+            implementation(libs.room.ktx)
+
+            // Firebase dependencies:
+            implementation(libs.firebase.auth)
 
             // Koin dependencies:
             implementation(libs.koin.android)
@@ -111,7 +98,10 @@ kotlin {
         iosMain.dependencies {
             // Ktor dependencies:
             implementation(libs.ktor.client.darwin)
-            implementation(libs.sqldelight.native.driver)
+
+            // Room dependencies:
+            implementation(libs.room.runtime)
+            implementation(libs.sqlite.bundled)
         }
         jvmMain.dependencies {
             // Desktop dependencies:
@@ -121,25 +111,9 @@ kotlin {
             // Ktor dependencies:
             implementation(libs.ktor.client.java)
 
-            // SQLDelight dependencies:
-            implementation(libs.sqldelight.jvm.driver)
-        }
-        wasmJsMain.dependencies {
-            // Ktor dependencies:
-            implementation(libs.ktor.client.js)
-
-            // SQLDelight dependencies:
-            implementation(libs.sqldelight.web.driver)
-        }
-        jsMain.dependencies {
-            // Ktor dependencies:
-            implementation(libs.ktor.client.js)
-
-            // SQLDelight dependencies:
-            implementation(libs.sqldelight.web.driver)
-
-            implementation(npm("@cashapp/sqldelight-sqljs-worker", "2.0.1"))
-            implementation(npm("sql.js", "1.8.0"))
+            // Room dependencies:
+            implementation(libs.room.runtime)
+            implementation(libs.sqlite.bundled)
         }
     }
 }
@@ -172,6 +146,10 @@ android {
 }
 
 dependencies {
+    add("kspAndroid", libs.room.compiler)
+    add("kspIosArm64", libs.room.compiler)
+    add("kspIosSimulatorArm64", libs.room.compiler)
+    add("kspJvm", libs.room.compiler)
     debugImplementation(libs.compose.uiTooling)
 }
 
