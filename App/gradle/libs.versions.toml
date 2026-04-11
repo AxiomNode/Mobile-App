@@ -13,6 +13,7 @@ android-minSdk = "24"
 android-targetSdk = "36"
 androidx-activity = "1.13.0"
 androidx-lifecycle = "2.10.0"
+androidx-credentials = "1.5.0"
 
 # Compose versions:
 composeMultiplatform = "1.10.3"
@@ -28,9 +29,13 @@ koin = "4.2.0"
 room = "2.8.1"
 sqlite-bundled = "2.6.2"
 
-# Firebase versions (Android only):
+# Firebase versions:
 firebase-auth = "23.0.0"
 firebase-bom = "33.5.0"
+google-services = "4.4.2"
+
+# Google Identity:
+googleid = "1.1.1"
 
 # Testing versions:
 
@@ -51,6 +56,11 @@ compose-uiTooling = { module = "org.jetbrains.compose.ui:ui-tooling", version.re
 androidx-lifecycle-viewmodelCompose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "androidx-lifecycle" }
 androidx-lifecycle-runtimeCompose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose", version.ref = "androidx-lifecycle" }
 
+# Credential Manager (Google Sign-In on Android)
+credentials = { module = "androidx.credentials:credentials", version.ref = "androidx-credentials" }
+credentials-playServices = { module = "androidx.credentials:credentials-play-services-auth", version.ref = "androidx-credentials" }
+googleid = { module = "com.google.android.libraries.identity.googleid:googleid", version.ref = "googleid" }
+
 # Compose libraries:
 compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "composeMultiplatform" }
 compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "composeMultiplatform" }
@@ -70,20 +80,20 @@ ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx
 ktor-client-logging = { module = "io.ktor:ktor-client-logging", version.ref = "ktor" }
 ktor-client-auth = { module = "io.ktor:ktor-client-auth", version.ref = "ktor" }
 
-# Room (Android)
+# Room (KMP)
 room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
 room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
 room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
 sqlite-bundled = { module = "androidx.sqlite:sqlite-bundled", version.ref = "sqlite-bundled" }
 
-# Firebase (Android only)
+# Firebase
 firebase-auth = { module = "com.google.firebase:firebase-auth", version.ref = "firebase-auth" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebase-bom" }
 
 # Serialization
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 
-# Koin (Inyección de dependencias)
+# Koin (DI)
 koin-bom = { module = "io.insert-koin:koin-bom", version.ref = "koin" }
 koin-core = { module = "io.insert-koin:koin-core" }
 koin-compose = { module = "io.insert-koin:koin-compose" }
@@ -104,7 +114,9 @@ ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 # Android plugins:
 androidApplication = { id = "com.android.application", version.ref = "agp" }
 
+# Google Services (Firebase):
+googleServices = { id = "com.google.gms.google-services", version.ref = "google-services" }
+
 # Compose plugins:
 composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
-

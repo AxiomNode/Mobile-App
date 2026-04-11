@@ -6,16 +6,28 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
-// In KMP, Google Fonts are not directly supported in commonMain yet via the same Android API.
-// It is recommended to bundle the fonts as resources or use system fonts.
-// For now, we will use default system font families as a placeholder, 
-// or you can add .ttf files to composeResources/font and use Res.font.
+// =============================================================================
+// AxiomNode Design System – Typography
+// Design spec fonts: Display = Syne (bold sans), Body = Inter (clean sans)
+// In KMP commonMain, Google Fonts API is not available. We use system font
+// families as close match. To use actual fonts, add .ttf to composeResources/font.
+// =============================================================================
 
-val bodyFontFamily = FontFamily.Monospace
+/**
+ * Body text font family.
+ * Design spec: Inter → mapped to system Default (sans-serif).
+ */
+val bodyFontFamily = FontFamily.Default
+
+/**
+ * Display / headline font family.
+ * Design spec: Syne → mapped to system SansSerif.
+ * For the actual Syne font, bundle the .ttf file in composeResources/font.
+ */
 val displayFontFamily = FontFamily.SansSerif
 
-// Default Material 3 typography values
-val baseline = Typography()
+// Default Material 3 typography baseline
+private val baseline = Typography()
 
 val AppTypography = Typography(
     displayLarge = baseline.displayLarge.copy(fontFamily = displayFontFamily),
@@ -24,13 +36,13 @@ val AppTypography = Typography(
     headlineLarge = baseline.headlineLarge.copy(fontFamily = displayFontFamily),
     headlineMedium = baseline.headlineMedium.copy(fontFamily = displayFontFamily),
     headlineSmall = baseline.headlineSmall.copy(fontFamily = displayFontFamily),
-    titleLarge = baseline.titleLarge.copy(fontFamily = displayFontFamily),
-    titleMedium = baseline.titleMedium.copy(fontFamily = displayFontFamily),
-    titleSmall = baseline.titleSmall.copy(fontFamily = displayFontFamily),
+    titleLarge = baseline.titleLarge.copy(fontFamily = displayFontFamily, fontWeight = FontWeight.SemiBold),
+    titleMedium = baseline.titleMedium.copy(fontFamily = displayFontFamily, fontWeight = FontWeight.SemiBold),
+    titleSmall = baseline.titleSmall.copy(fontFamily = displayFontFamily, fontWeight = FontWeight.Medium),
     bodyLarge = baseline.bodyLarge.copy(fontFamily = bodyFontFamily),
     bodyMedium = baseline.bodyMedium.copy(fontFamily = bodyFontFamily),
     bodySmall = baseline.bodySmall.copy(fontFamily = bodyFontFamily),
-    labelLarge = baseline.labelLarge.copy(fontFamily = bodyFontFamily),
-    labelMedium = baseline.labelMedium.copy(fontFamily = bodyFontFamily),
+    labelLarge = baseline.labelLarge.copy(fontFamily = bodyFontFamily, fontWeight = FontWeight.Medium),
+    labelMedium = baseline.labelMedium.copy(fontFamily = bodyFontFamily, fontWeight = FontWeight.Medium),
     labelSmall = baseline.labelSmall.copy(fontFamily = bodyFontFamily),
 )

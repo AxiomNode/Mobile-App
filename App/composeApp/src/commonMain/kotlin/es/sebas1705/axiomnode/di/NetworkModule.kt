@@ -1,9 +1,4 @@
 package es.sebas1705.axiomnode.di
 
-import es.sebas1705.axiomnode.network.createHttpClient
-import io.ktor.client.HttpClient
-import org.koin.dsl.module
-
-val networkModule = module {
-    single<HttpClient> { createHttpClient() }
-}
+// NetworkModule is no longer needed – HttpClient is configured in DataModule
+// with AppConfig-based edge token and logging level.

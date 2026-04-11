@@ -1,0 +1,22 @@
+# Secrets policy (centralized in secrets repo)
+.env
+.env.*
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.sample
+!**/.env.template
+**/.env.secrets
+*.secrets.env
+runtime/**/*.env
+*firebase*service-account*.json
+*service-account*.json
+
+# mobile-app private runtime artifacts belong only in secrets/
+App/composeApp/env/dev.properties
+App/composeApp/env/stg.properties
+App/composeApp/env/prod.properties
+App/composeApp/google-services.json
+App/iosApp/iosApp/GoogleService-Info.plist
+App/**/*.jks
+App/**/*.keystore

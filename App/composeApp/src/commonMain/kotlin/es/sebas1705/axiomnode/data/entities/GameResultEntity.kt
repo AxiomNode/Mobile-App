@@ -20,7 +20,7 @@ data class GameResultEntity(
     val outcome: String, // WON, LOST, DRAW
     val score: Int,
     val durationSeconds: Int,
-    val timestamp: Long = System.currentTimeMillis(),
+    val timestamp: Long = 0L,
     val synced: Boolean = false, // true si se envio al backend
 ) {
     fun toDomain(): GameResult {

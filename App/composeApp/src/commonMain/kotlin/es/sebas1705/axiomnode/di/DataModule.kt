@@ -1,7 +1,10 @@
 package es.sebas1705.axiomnode.di
 
+import es.sebas1705.axiomnode.config.AppConfig
+import es.sebas1705.axiomnode.config.createAppConfig
 import es.sebas1705.axiomnode.data.db.AxiomNodeDatabase
 import es.sebas1705.axiomnode.data.network.AuthHttpClient
+import es.sebas1705.axiomnode.data.network.GameResultSyncEngine
 import es.sebas1705.axiomnode.data.network.GamesHttpClient
 import es.sebas1705.axiomnode.data.repositories.AuthRepository
 import es.sebas1705.axiomnode.data.repositories.GamesRepository
@@ -15,13 +18,15 @@ import io.ktor.client.plugins.logging.Logger
 import io.ktor.client.plugins.logging.Logging
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
-import org.koin.core.module.dsl.singleOf
-import org.koin.dsl.bind
 import org.koin.dsl.module
 
 val dataModule = module {
-    // HTTP Client singleton
+    // AppConfig singleton
+    single<AppConfig> { createAppConfig() }
+
+    // HTTP client for public mobile edge endpoints.
     single<HttpClient> {
+        val config = get<AppConfig>()
         HttpClient {
             install(ContentNegotiation) {
                 json(Json {
@@ -31,23 +36,40 @@ val dataModule = module {
             }
             install(Logging) {
                 logger = Logger.DEFAULT
-                level = LogLevel.INFO
+                level = if (config.environment.isDev) LogLevel.ALL else LogLevel.INFO
             }
         }
     }
 
-    // Database (platform-specific initialization)
-    single<AxiomNodeDatabase> { provideDatabase() }
+    // Database (platform-specific initialization via platformModule)
+    // Note: AxiomNodeDatabase is provided by platformModule, not here.
+    // This avoids GlobalContext issues with KoinApplication composable.
 
-    // Network clients
-    single { AuthHttpClient(get()) }
-    single { GamesHttpClient(get()) }
+    // DAOs (resolved from the database provided by platformModule)
+    single { get<AxiomNodeDatabase>().gameDao() }
+    single { get<AxiomNodeDatabase>().gameResultDao() }
+
+    // Network clients – receive AppConfig for base URLs
+    single { AuthHttpClient(get(), get<AppConfig>().apiBaseUrl) }
+    single { GamesHttpClient(get(), get<AppConfig>().apiBaseUrl) }
+
+    // Sync engine
+    single { GameResultSyncEngine(get(), get<GamesHttpClient>()) }
 
     // Repositories / Use Cases
-    singleOf(::AuthRepository).bind<AuthUseCase>()
-    singleOf(::GamesRepository).bind<GamesUseCase>()
+    single<AuthUseCase> {
+        AuthRepository(
+            httpClient = get<AuthHttpClient>(),
+            config = get<AppConfig>(),
+        )
+    }
+    single<GamesUseCase> {
+        GamesRepository(
+            httpClient = get<GamesHttpClient>(),
+            gameDao = get(),
+            gameResultDao = get(),
+            syncEngine = get<GameResultSyncEngine>(),
+            config = get<AppConfig>(),
+        )
+    }
 }
-
-// Platform-specific factory (implemented per platform)
-expect fun provideDatabase(): AxiomNodeDatabase
-

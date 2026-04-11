@@ -13,6 +13,7 @@ import io.ktor.client.request.parameter
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
+import io.ktor.http.isSuccess
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -72,14 +73,45 @@ data class GameResponse(
 }
 
 /**
- * Cliente HTTP para juegos (Quiz y Wordpass).
+ * Request body for syncing game results to backend.
+ * Route: POST /mobile/games/events
+ * (api-gateway → bff-mobile → microservice-users /users/me/games/events)
+ */
+@Serializable
+data class GameResultSyncRequest(
+    val events: List<GameEventDto>,
+)
+
+@Serializable
+data class GameEventDto(
+    val gameId: String,
+    val gameType: String,
+    val categoryId: String,
+    val categoryName: String,
+    val language: String,
+    val outcome: String,
+    val score: Int,
+    val durationSeconds: Int,
+    val timestamp: Long,
+)
+
+@Serializable
+data class SyncResponse(
+    val synced: Int? = null,
+    val message: String? = null,
+)
+
+/**
+ * HTTP client for game operations via api-gateway → bff-mobile → microservice-quizz/wordpass.
+ *
+ * @param baseUrl The api-gateway edge URL (e.g. http://localhost:7005).
  */
 class GamesHttpClient(
     private val httpClient: HttpClient,
-    private val baseUrl: String = "http://microservice-quizz:7100",
+    private val baseUrl: String,
 ) {
     suspend fun getGameCatalog(): Result<GameCatalog> = try {
-        val response = httpClient.get("$baseUrl/games/categories")
+        val response = httpClient.get("$baseUrl/mobile/games/categories")
         val catalog = response.body<GameCatalogResponse>()
         Result.success(catalog.toDomain())
     } catch (e: Exception) {
@@ -87,7 +119,7 @@ class GamesHttpClient(
     }
 
     suspend fun generateGame(request: GameGenerateRequest, authToken: String): Result<Game> = try {
-        val response = httpClient.post("$baseUrl/games/generate") {
+        val response = httpClient.post("$baseUrl/mobile/games/generate") {
             bearerAuth(authToken)
             contentType(ContentType.Application.Json)
             setBody(request)
@@ -103,7 +135,7 @@ class GamesHttpClient(
         language: String = "es",
         categoryId: String? = null,
     ): Result<List<Game>> = try {
-        val response = httpClient.get("$baseUrl/games/models/random") {
+        val response = httpClient.get("$baseUrl/mobile/games/models/random") {
             parameter("count", count)
             parameter("language", language)
             categoryId?.let { parameter("categoryId", it) }
@@ -113,5 +145,27 @@ class GamesHttpClient(
     } catch (e: Exception) {
         Result.failure(e)
     }
-}
 
+    /**
+     * Sync game results to backend.
+     * Route: POST /mobile/games/events
+     */
+    suspend fun syncGameResults(
+        events: List<GameEventDto>,
+        authToken: String,
+    ): Result<SyncResponse> = try {
+        val response = httpClient.post("$baseUrl/mobile/games/events") {
+            bearerAuth(authToken)
+            contentType(ContentType.Application.Json)
+            setBody(GameResultSyncRequest(events))
+        }
+        if (response.status.isSuccess()) {
+            val body = response.body<SyncResponse>()
+            Result.success(body)
+        } else {
+            Result.failure(Exception("Sync failed: HTTP ${response.status.value}"))
+        }
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+}

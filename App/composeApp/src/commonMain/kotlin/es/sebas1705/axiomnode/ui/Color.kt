@@ -1,5 +1,12 @@
 package es.sebas1705.axiomnode.ui
+
 import androidx.compose.ui.graphics.Color
+
+// =============================================================================
+// AxiomNode Design System – Color Tokens
+// Generated from Material Theme Builder (docs/design/theme/Global theme.json)
+// Seed: #0043F4 | Secondary: #6A1B94 | Tertiary: #00BFA5
+// =============================================================================
 
 val primaryLight = Color(0xFF505B92)
 val onPrimaryLight = Color(0xFFFFFFFF)
@@ -217,9 +224,51 @@ val surfaceContainerDarkHighContrast = Color(0xFF303036)
 val surfaceContainerHighDarkHighContrast = Color(0xFF3B3B41)
 val surfaceContainerHighestDarkHighContrast = Color(0xFF46464C)
 
+// ---------------------------------------------------------------------------
+// Tonal palettes (for custom component theming)
+// From Material Theme Builder: seed #0043F4, secondary #6A1B94, tertiary #00BFA5
+// ---------------------------------------------------------------------------
+object AxiomPalette {
+    // Primary tonal
+    val primary10 = Color(0xFF001257)
+    val primary20 = Color(0xFF00228A)
+    val primary30 = Color(0xFF0033C1)
+    val primary40 = Color(0xFF0C47F7)
+    val primary50 = Color(0xFF4568FF)
+    val primary60 = Color(0xFF6F88FF)
+    val primary70 = Color(0xFF94A6FF)
+    val primary80 = Color(0xFFB9C3FF)
+    val primary90 = Color(0xFFDDE1FF)
+    val primary95 = Color(0xFFF0EFFF)
 
+    // Secondary tonal
+    val secondary10 = Color(0xFF30004A)
+    val secondary20 = Color(0xFF500076)
+    val secondary30 = Color(0xFF6C1D96)
+    val secondary40 = Color(0xFF863BB0)
+    val secondary50 = Color(0xFFA155CB)
+    val secondary60 = Color(0xFFBD70E7)
+    val secondary70 = Color(0xFFD78DFF)
+    val secondary80 = Color(0xFFE7B4FF)
+    val secondary90 = Color(0xFFF5D9FF)
+    val secondary95 = Color(0xFFFDEBFF)
 
+    // Tertiary tonal
+    val tertiary10 = Color(0xFF00201A)
+    val tertiary20 = Color(0xFF00382F)
+    val tertiary30 = Color(0xFF005145)
+    val tertiary40 = Color(0xFF006B5C)
+    val tertiary50 = Color(0xFF008674)
+    val tertiary60 = Color(0xFF00A38D)
+    val tertiary70 = Color(0xFF08C1A6)
+    val tertiary80 = Color(0xFF44DDC1)
+    val tertiary90 = Color(0xFF68FADD)
+    val tertiary95 = Color(0xFFB6FFED)
 
-
-
-
+    // Neutral tonal
+    val neutral10 = Color(0xFF1B1B1F)
+    val neutral20 = Color(0xFF303034)
+    val neutral90 = Color(0xFFE4E1E6)
+    val neutral95 = Color(0xFFF3F0F4)
+    val neutral99 = Color(0xFFFEFBFF)
+}

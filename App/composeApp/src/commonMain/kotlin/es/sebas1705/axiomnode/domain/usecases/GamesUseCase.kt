@@ -3,6 +3,7 @@ package es.sebas1705.axiomnode.domain.usecases
 import es.sebas1705.axiomnode.domain.models.Game
 import es.sebas1705.axiomnode.domain.models.GameCatalog
 import es.sebas1705.axiomnode.domain.models.GameResult
+import es.sebas1705.axiomnode.domain.models.GameStats
 
 /**
  * Casos de uso para juegos (Quiz y Wordpass).
@@ -24,5 +25,20 @@ interface GamesUseCase {
     ): Result<List<Game>>
     
     suspend fun recordGameResult(result: GameResult): Result<Unit>
+
+    suspend fun getRecentResults(limit: Int = 20): Result<List<GameResult>>
+
+    suspend fun getGameStats(): Result<GameStats>
+
+    /**
+     * Sync all unsynced game results to the backend.
+     * @return number of results successfully synced.
+     */
+    suspend fun syncPendingResults(): Result<Int>
+
+    /**
+     * Returns the count of results pending sync.
+     */
+    suspend fun getPendingSyncCount(): Int
 }
 

@@ -1,24 +1,57 @@
 package es.sebas1705.axiomnode
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import es.sebas1705.axiomnode.di.dataModule
 import es.sebas1705.axiomnode.di.platformModule
+import es.sebas1705.axiomnode.domain.models.Game
 import es.sebas1705.axiomnode.presentation.auth.AuthScreen
 import es.sebas1705.axiomnode.presentation.auth.AuthViewModel
+import es.sebas1705.axiomnode.presentation.gameplay.GamePlayScreen
+import es.sebas1705.axiomnode.presentation.gameplay.GamePlayViewModel
 import es.sebas1705.axiomnode.presentation.games.GamesScreen
 import es.sebas1705.axiomnode.presentation.games.GamesViewModel
+import es.sebas1705.axiomnode.presentation.history.HistoryScreen
+import es.sebas1705.axiomnode.presentation.profile.ProfileScreen
 import es.sebas1705.axiomnode.ui.AppTheme
 import org.koin.compose.KoinApplication
 import org.koin.compose.koinInject
 import org.koin.dsl.KoinAppDeclaration
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Navigation destinations
+// ─────────────────────────────────────────────────────────────────────────────
+enum class AppScreen {
+    AUTH,
+    MAIN,
+}
+
+enum class MainTab(val label: String, val icon: String) {
+    GAMES("Juegos", "🎮"),
+    HISTORY("Historial", "📊"),
+    PROFILE("Perfil", "👤"),
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Root composable
+// ─────────────────────────────────────────────────────────────────────────────
 @Composable
-@Suppress("ModifierTopMost")
+@Suppress("ModifierTopMost", "DEPRECATION")
 fun App(
     modifier: Modifier = Modifier,
     koinAppDeclaration: KoinAppDeclaration? = null,
@@ -30,29 +63,130 @@ fun App(
         }
     ) {
         AppTheme {
-            AppNavigation(modifier)
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.background,
+            ) {
+                AppNavigation(modifier)
+            }
         }
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Navigation host
+// ─────────────────────────────────────────────────────────────────────────────
 @Composable
 fun AppNavigation(modifier: Modifier = Modifier) {
     val authViewModel: AuthViewModel = koinInject()
     val gamesViewModel: GamesViewModel = koinInject()
-    
-    var showGames by remember { mutableStateOf(false) }
 
-    if (showGames) {
-        GamesScreen(
-            viewModel = gamesViewModel,
-            onGameSelected = { gameId ->
-                // TODO: Navegar a pantalla de juego
-            },
-        )
-    } else {
-        AuthScreen(
-            viewModel = authViewModel,
-            onSignInSuccess = { showGames = true },
-        )
+    var currentScreen by rememberSaveable { mutableStateOf(AppScreen.AUTH) }
+
+    Crossfade(
+        targetState = currentScreen,
+        animationSpec = tween(durationMillis = 400),
+        modifier = modifier,
+        label = "screen-crossfade",
+    ) { screen ->
+        when (screen) {
+            AppScreen.AUTH -> {
+                AuthScreen(
+                    viewModel = authViewModel,
+                    onSignInSuccess = { currentScreen = AppScreen.MAIN },
+                )
+            }
+
+            AppScreen.MAIN -> {
+                MainScaffold(
+                    authViewModel = authViewModel,
+                    gamesViewModel = gamesViewModel,
+                    onSignOut = { currentScreen = AppScreen.AUTH },
+                )
+            }
+        }
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main scaffold with bottom navigation + gameplay overlay
+// ─────────────────────────────────────────────────────────────────────────────
+@Composable
+private fun MainScaffold(
+    authViewModel: AuthViewModel,
+    gamesViewModel: GamesViewModel,
+    onSignOut: () -> Unit,
+) {
+    var selectedTab by rememberSaveable { mutableStateOf(MainTab.GAMES) }
+    var activeGame by remember { mutableStateOf<Game?>(null) }
+
+    // Find the selected game from the games list
+    val games = gamesViewModel.state.value.games
+
+    activeGame?.let { game ->
+        val gamePlayViewModel: GamePlayViewModel = koinInject()
+        GamePlayScreen(
+            game = game,
+            viewModel = gamePlayViewModel,
+            onExit = { activeGame = null },
+        )
+        return
+    }
+
+    Scaffold(
+        bottomBar = {
+            NavigationBar(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            ) {
+                MainTab.entries.forEach { tab ->
+                    NavigationBarItem(
+                        selected = selectedTab == tab,
+                        onClick = { selectedTab = tab },
+                        icon = {
+                            Text(
+                                text = tab.icon,
+                                style = MaterialTheme.typography.titleLarge,
+                            )
+                        },
+                        label = {
+                            Text(
+                                text = tab.label,
+                                style = MaterialTheme.typography.labelMedium,
+                            )
+                        },
+                    )
+                }
+            }
+        },
+    ) { innerPadding ->
+        Crossfade(
+            targetState = selectedTab,
+            animationSpec = tween(durationMillis = 300),
+            modifier = Modifier.padding(innerPadding),
+            label = "tab-crossfade",
+        ) { tab ->
+            when (tab) {
+                MainTab.GAMES -> {
+                    GamesScreen(
+                        viewModel = gamesViewModel,
+                        onGameSelected = { gameId ->
+                            activeGame = games.find { it.id == gameId }
+                        },
+                    )
+                }
+
+                MainTab.HISTORY -> {
+                    HistoryScreen()
+                }
+
+                MainTab.PROFILE -> {
+                    ProfileScreen(
+                        authViewModel = authViewModel,
+                        onSignOut = onSignOut,
+                    )
+                }
+            }
+        }
+    }
+}
+

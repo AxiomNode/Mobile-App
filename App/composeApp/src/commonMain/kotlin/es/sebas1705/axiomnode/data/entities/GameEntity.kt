@@ -19,7 +19,7 @@ data class GameEntity(
     val categoryName: String,
     val language: String,
     val questionsJson: String, // JSON serializado
-    val createdAt: Long = System.currentTimeMillis(),
+    val createdAt: Long = 0L,
 ) {
     fun toDomain(): Game {
         val questions = try {
