@@ -113,11 +113,8 @@ ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 
 # Android plugins:
 androidApplication = { id = "com.android.application", version.ref = "agp" }
-androidLibrary = { id = "com.android.library", version.ref = "agp" }
+androidKotlinMultiplatformLibrary = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
 kotlinAndroid = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
-
-# Google Services (Firebase):
-googleServices = { id = "com.google.gms.google-services", version.ref = "google-services" }
 
 # Compose plugins:
 composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }

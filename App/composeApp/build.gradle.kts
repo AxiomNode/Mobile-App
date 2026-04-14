@@ -116,7 +116,7 @@ val generateConfigTask = tasks.register("generateAppConfig") {
 // ---------------------------------------------------------------------------
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
-    alias(libs.plugins.androidLibrary)
+    alias(libs.plugins.androidKotlinMultiplatformLibrary)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.kotlinSerialization)
@@ -133,7 +133,15 @@ kotlin {
         freeCompilerArgs.add("-Xexpect-actual-classes")
     }
 
-    androidTarget {
+    android {
+        namespace = "es.sebas1705.axiomnode.composeapp"
+        compileSdk = libs.versions.android.compileSdk.get().toInt()
+        minSdk = libs.versions.android.minSdk.get().toInt()
+
+        androidResources {
+            enable = true
+        }
+
         @OptIn(ExperimentalKotlinGradlePluginApi::class)
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_11)
@@ -251,43 +259,6 @@ tasks.configureEach {
 }
 
 // ---------------------------------------------------------------------------
-// Android
-// ---------------------------------------------------------------------------
-@Suppress("DEPRECATION")
-android {
-    namespace = "es.sebas1705.axiomnode.composeapp"
-    compileSdk = libs.versions.android.compileSdk.get().toInt()
-
-    defaultConfig {
-        minSdk = libs.versions.android.minSdk.get().toInt()
-    }
-
-    // --- Product flavors (environment dimension) ---------------------------
-    flavorDimensions += "environment"
-    productFlavors {
-        create("dev") {
-            dimension = "environment"
-        }
-        create("stg") {
-            dimension = "environment"
-        }
-        create("prod") {
-            dimension = "environment"
-        }
-    }
-
-    packaging {
-        resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
-        }
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
-}
-
-// ---------------------------------------------------------------------------
 // KSP (Room compiler)
 // ---------------------------------------------------------------------------
 dependencies {
@@ -295,7 +266,7 @@ dependencies {
     add("kspIosArm64", libs.room.compiler)
     add("kspIosSimulatorArm64", libs.room.compiler)
     add("kspJvm", libs.room.compiler)
-    debugImplementation(libs.compose.uiTooling)
+    add("androidRuntimeClasspath", libs.compose.uiTooling)
 }
 
 // ---------------------------------------------------------------------------

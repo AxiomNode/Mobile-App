@@ -86,6 +86,7 @@ Open **[/iosApp](./iosApp)** in Xcode and run from there, or use the IDE run con
 ## Current migration status
 
 - The Android launcher has been split into `:androidApp`, so `:composeApp` now acts as the shared KMP module.
+- `:composeApp` now uses `com.android.kotlin.multiplatform.library` instead of the legacy `com.android.library` plugin.
 - `:composeApp:jvmTest` still fails in `compileTestKotlinJvm` with a Gradle variant-selection NPE under the current AGP/Kotlin/Compose stack.
 
 ## ⚠️ Known deprecations (non-blocking)
@@ -93,12 +94,12 @@ Open **[/iosApp](./iosApp)** in Xcode and run from there, or use the IDE run con
 | Warning | Cause | Fix |
 |---|---|---|
 | `android.builtInKotlin=false` / `android.newDsl=false` | Legacy AGP 9 compatibility toggles | Migrate to AGP built-in Kotlin |
-| `org.jetbrains.kotlin.multiplatform` + `com.android.library` | AGP 9 now prefers `com.android.kotlin.multiplatform.library` for shared Android KMP libraries | Migrate the shared module plugin stack |
+| `org.jetbrains.kotlin.android` in `:androidApp` | AGP 9 now prefers built-in Kotlin support for Android-only modules | Remove legacy flags and migrate androidApp to built-in Kotlin |
 | `KoinApplication(application=…)` deprecated | Koin 4.2 changed API | Update `App.kt` when starting |
 
 ### Next platform step
 
-The Android app split is now in place. The next compatibility step is migrating the shared Android target from `com.android.library` to `com.android.kotlin.multiplatform.library` once the rest of the toolchain is ready:
+The Android app split and shared-module plugin migration are now in place. The next compatibility step is migrating the project off the AGP legacy Kotlin flags so `:androidApp` can use built-in Kotlin support cleanly:
 
 ```
 :composeApp  ← KMP library (commonMain + iosMain + jvmMain + androidMain)
