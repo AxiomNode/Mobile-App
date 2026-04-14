@@ -12,7 +12,7 @@ Mobile client application workspace for AxiomNode.
 
 - This repository includes a baseline CI workflow in `.github/workflows/ci.yml`.
 - The Android client is now split between `App/composeApp` (shared KMP code) and `App/androidApp` (Android application entrypoint).
-- The workflow runs `:composeApp:jvmTest` and builds the Android debug artifact from `:androidApp` on pushes, pull requests, and manual dispatches.
+- The workflow runs `:composeApp:jvmTest`, builds the Android debug artifact from `:androidApp`, and links the iOS simulator framework on macOS runners for baseline Apple validation.
 - iOS targets are registered only on macOS hosts so Windows and Linux validation can run shared JVM tests without pulling native Apple variants.
 - CI/CD automation for backend deployment is managed in service repositories and `platform-infra`.
 

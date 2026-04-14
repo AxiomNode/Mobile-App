@@ -32,3 +32,22 @@ jobs:
         run: ./gradlew --no-daemon :composeApp:jvmTest
       - name: Build Android debug artifact
         run: ./gradlew --no-daemon :androidApp:assembleDebug
+
+  validate-apple:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: App
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+      - name: Ensure Gradle wrapper is executable
+        run: chmod +x gradlew
+      - name: Build iOS simulator framework
+        run: ./gradlew --no-daemon :composeApp:linkDebugFrameworkIosSimulatorArm64
