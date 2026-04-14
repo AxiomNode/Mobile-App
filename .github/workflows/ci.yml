@@ -26,7 +26,7 @@ jobs:
           java-version: '21'
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
-      - name: Compile shared JVM sources
-        run: ./gradlew --no-daemon :composeApp:compileKotlinJvm
+      - name: Run shared JVM tests
+        run: ./gradlew --no-daemon :composeApp:jvmTest
       - name: Build Android debug artifact
         run: ./gradlew --no-daemon :androidApp:assembleDebug

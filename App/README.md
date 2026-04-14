@@ -88,7 +88,8 @@ Open **[/iosApp](./iosApp)** in Xcode and run from there, or use the IDE run con
 - The Android launcher has been split into `:androidApp`, so `:composeApp` now acts as the shared KMP module.
 - `:composeApp` now uses `com.android.kotlin.multiplatform.library` instead of the legacy `com.android.library` plugin.
 - `:androidApp` now relies on AGP built-in Kotlin support instead of the legacy `org.jetbrains.kotlin.android` plugin.
-- `:composeApp:jvmTest` still fails in `compileTestKotlinJvm` with a Gradle variant-selection NPE under the current AGP/Kotlin/Compose stack.
+- `:composeApp:jvmTest` now passes again after removing the incompatible `androidx.room:room-ktx` dependency from the shared JVM test classpath.
+- iOS targets are registered only on macOS hosts so non-macOS environments can validate JVM and Android tasks without resolving Apple-native variants.
 
 ## ⚠️ Known deprecations (non-blocking)
 
@@ -98,7 +99,7 @@ Open **[/iosApp](./iosApp)** in Xcode and run from there, or use the IDE run con
 
 ### Next platform step
 
-The Android app split, shared-module plugin migration, and AGP built-in Kotlin migration are now in place. The next platform step is isolating the remaining `:composeApp:jvmTest` variant-resolution failure in the JVM test stack:
+The Android app split, shared-module plugin migration, AGP built-in Kotlin migration, and JVM test recovery are now in place. The next platform step is broadening automated quality checks around this stabilized baseline:
 
 ```
 :composeApp  ← KMP library (commonMain + iosMain + jvmMain + androidMain)

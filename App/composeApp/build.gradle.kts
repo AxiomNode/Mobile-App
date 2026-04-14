@@ -41,6 +41,7 @@ fun resolveEnv(): String {
 // Config-time env (for signing configs, etc.)
 val activeEnv: String = resolveEnv()
 val envProps = loadEnvProps(activeEnv)
+val isMacOs = System.getProperty("os.name").startsWith("Mac", ignoreCase = true)
 
 fun envVal(key: String, default: String = ""): String =
     envProps.getProperty(key, default).trim()
@@ -148,13 +149,15 @@ kotlin {
         }
     }
 
-    listOf(
-        iosArm64(),
-        iosSimulatorArm64()
-    ).forEach { iosTarget ->
-        iosTarget.binaries.framework {
-            baseName = "ComposeApp"
-            isStatic = true
+    if (isMacOs) {
+        listOf(
+            iosArm64(),
+            iosSimulatorArm64()
+        ).forEach { iosTarget ->
+            iosTarget.binaries.framework {
+                baseName = "ComposeApp"
+                isStatic = true
+            }
         }
     }
 
@@ -169,7 +172,7 @@ kotlin {
         commonMain.dependencies {
             // Lifecycle / ViewModel
             implementation(libs.androidx.lifecycle.runtimeCompose)
-            implementation(libs.androidx.lifecycle.viewmodelCompose)
+            implementation(libs.androidx.lifecycle.viewmodel)
             implementation(libs.kotlinx.coroutines.core)
 
             // Compose
@@ -192,7 +195,6 @@ kotlin {
             implementation(project.dependencies.platform(libs.koin.bom))
             implementation(libs.koin.core)
             implementation(libs.koin.compose)
-            implementation(libs.koin.compose.viewmodel)
 
             // Image loading
             implementation(libs.kamel.image)
@@ -202,7 +204,6 @@ kotlin {
 
             // Room & SQLite (KMP)
             implementation(libs.room.runtime)
-            implementation(libs.room.ktx)
             implementation(libs.sqlite.bundled)
 
             // Serialization
@@ -220,7 +221,6 @@ kotlin {
 
             // Room (Android)
             implementation(libs.room.runtime)
-            implementation(libs.room.ktx)
 
             // Firebase Auth
             implementation(project.dependencies.platform(libs.firebase.bom))
@@ -234,10 +234,12 @@ kotlin {
             // Koin Android
             implementation(libs.koin.android)
         }
-        iosMain.dependencies {
-            implementation(libs.ktor.client.darwin)
-            implementation(libs.room.runtime)
-            implementation(libs.sqlite.bundled)
+        if (isMacOs) {
+            iosMain.dependencies {
+                implementation(libs.ktor.client.darwin)
+                implementation(libs.room.runtime)
+                implementation(libs.sqlite.bundled)
+            }
         }
         jvmMain.dependencies {
             implementation(compose.desktop.currentOs)
@@ -263,8 +265,10 @@ tasks.configureEach {
 // ---------------------------------------------------------------------------
 dependencies {
     add("kspAndroid", libs.room.compiler)
-    add("kspIosArm64", libs.room.compiler)
-    add("kspIosSimulatorArm64", libs.room.compiler)
+    if (isMacOs) {
+        add("kspIosArm64", libs.room.compiler)
+        add("kspIosSimulatorArm64", libs.room.compiler)
+    }
     add("kspJvm", libs.room.compiler)
     add("androidRuntimeClasspath", libs.compose.uiTooling)
 }
