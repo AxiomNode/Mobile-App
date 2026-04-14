@@ -29,4 +29,4 @@ jobs:
       - name: Compile shared JVM sources
         run: ./gradlew --no-daemon :composeApp:compileKotlinJvm
       - name: Build Android debug artifact
-        run: ./gradlew --no-daemon :composeApp:assembleDebug
+        run: ./gradlew --no-daemon :androidApp:assembleDebug

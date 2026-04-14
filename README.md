@@ -11,7 +11,8 @@ Mobile client application workspace for AxiomNode.
 ## Current repository status
 
 - This repository includes a baseline CI workflow in `.github/workflows/ci.yml`.
-- The workflow compiles shared JVM sources and builds the Android debug artifact on pushes, pull requests, and manual dispatches.
+- The Android client is now split between `App/composeApp` (shared KMP code) and `App/androidApp` (Android application entrypoint).
+- The workflow compiles shared JVM sources and builds the Android debug artifact from `:androidApp` on pushes, pull requests, and manual dispatches.
 - CI/CD automation for backend deployment is managed in service repositories and `platform-infra`.
 
 ## Recommended next additions

@@ -116,12 +116,11 @@ val generateConfigTask = tasks.register("generateAppConfig") {
 // ---------------------------------------------------------------------------
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
-    alias(libs.plugins.androidApplication)
+    alias(libs.plugins.androidLibrary)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.ksp)
-    alias(libs.plugins.googleServices)
 }
 
 // ---------------------------------------------------------------------------
@@ -256,28 +255,11 @@ tasks.configureEach {
 // ---------------------------------------------------------------------------
 @Suppress("DEPRECATION")
 android {
-    namespace = "es.sebas1705.axiomnode"
+    namespace = "es.sebas1705.axiomnode.composeapp"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "es.sebas1705.axiomnode"
         minSdk = libs.versions.android.minSdk.get().toInt()
-        targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 1
-        versionName = "1.0"
-    }
-
-    // --- Signing -----------------------------------------------------------
-    signingConfigs {
-        create("release") {
-            val ks = envVal("ANDROID_KEYSTORE_FILE")
-            if (ks.isNotEmpty()) {
-                storeFile = file(ks)
-                storePassword = envVal("ANDROID_KEYSTORE_PASSWORD")
-                keyAlias = envVal("ANDROID_KEY_ALIAS")
-                keyPassword = envVal("ANDROID_KEY_PASSWORD")
-            }
-        }
     }
 
     // --- Product flavors (environment dimension) ---------------------------
@@ -285,30 +267,12 @@ android {
     productFlavors {
         create("dev") {
             dimension = "environment"
-            applicationIdSuffix = ".dev"
-            versionNameSuffix = "-dev"
         }
         create("stg") {
             dimension = "environment"
-            applicationIdSuffix = ".stg"
-            versionNameSuffix = "-stg"
         }
         create("prod") {
             dimension = "environment"
-        }
-    }
-
-    buildTypes {
-        getByName("debug") {
-            isMinifyEnabled = false
-        }
-        getByName("release") {
-            isMinifyEnabled = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro",
-            )
-            signingConfig = signingConfigs.findByName("release")
         }
     }
 
