@@ -114,7 +114,6 @@ ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 # Android plugins:
 androidApplication = { id = "com.android.application", version.ref = "agp" }
 androidKotlinMultiplatformLibrary = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
-kotlinAndroid = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 
 # Compose plugins:
 composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }
