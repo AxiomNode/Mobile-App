@@ -30,6 +30,8 @@ jobs:
         run: chmod +x gradlew
       - name: Run shared JVM tests
         run: ./gradlew --no-daemon :composeApp:jvmTest
+      - name: Run Android lint
+        run: ./gradlew --no-daemon :androidApp:lint
       - name: Build Android debug artifact
         run: ./gradlew --no-daemon :androidApp:assembleDebug
 
