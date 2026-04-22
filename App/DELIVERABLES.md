@@ -1,8 +1,7 @@
-# AxiomNode Mobile MVP - Final Delivery
+# AxiomNode Mobile MVP - Current Delivery Snapshot
 
 ## Delivery status
 
-- Development session: 31 Mar 2026
 - Scope delivered: cleanup + MVP app architecture (Auth and Games)
 - Build verification: Android and JVM successful, iOS pending host validation
 
@@ -82,19 +81,15 @@
 2. Result is persisted in local DB with sync status.
 3. Future sync stage posts events to microservice-users.
 
-## Immediate roadmap
+## Current scope boundaries
 
-### Phase 1
-- Implement full gameplay screen and scoring logic.
+This document records what is already present in the delivered mobile MVP foundation.
 
-### Phase 2
-- Complete production-ready Google Sign-In setup.
+Items intentionally outside the currently validated scope include:
 
-### Phase 3
-- Implement resilient background sync for game results.
-
-### Phase 4
-- Add leaderboard and broader QA coverage.
+- full iOS host validation
+- release hardening such as certificate pinning and token refresh policies
+- broader gameplay, leaderboard, and wider QA expansion beyond the baseline flow
 
 ## Security follow-up
 
@@ -103,11 +98,11 @@
 - HTTPS-ready HTTP client architecture.
 - Non-persistent token-first flow assumptions.
 
-### Pending
+### Not yet part of the validated baseline
 - Certificate pinning strategy.
 - Token refresh/expiry handling.
 - Obfuscation/release hardening.
 
 ## Conclusion
 
-The mobile MVP foundation is in place and technically validated on Android and Desktop JVM. The next major milestone is full gameplay implementation followed by production auth hardening and sync completion.
+The mobile MVP foundation documented here is the current validated baseline for Android and Desktop JVM, with iOS still awaiting host-specific execution validation.

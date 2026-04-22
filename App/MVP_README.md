@@ -67,13 +67,15 @@ composeApp/src/
 ### iOS
 Open iosApp/iosApp.xcodeproj in Xcode and run.
 
-## Next steps
+## Current scope boundaries
 
-1. Implement full gameplay UX and scoring.
-2. Complete production Google Sign-In integration.
-3. Add offline sync engine and retries for pending results.
-4. Add leaderboard feature and analytics views.
-5. Add unit/integration testing coverage.
+The current MVP description in this file is limited to:
+
+1. authentication and session bootstrap
+2. game catalog and fetch flows
+3. local persistence for cached games and results
+
+Gameplay completeness, release hardening, and broader quality coverage are tracked in the implementation surface of the app itself rather than maintained here as roadmap text.
 
 ## Current status
 

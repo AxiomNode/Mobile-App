@@ -1,6 +1,6 @@
-# AxiomNode Mobile MVP - Change Summary
+# AxiomNode Mobile MVP - Current Implementation Summary
 
-## Completed work
+## Current implemented scope
 
 ### 1. Legacy cleanup
 - Removed the old Country datasource implementation and related files.
@@ -180,34 +180,14 @@
 | stg         | http://localhost:7005      | firebase  | VPS staging / real backend |
 | prod        | https://api.axiomnode.com  | firebase  | Production (future)        |
 
-## Recommended next steps
+## Current non-finalized areas
 
-### Phase 1 - Remaining gameplay
-1. Implement Wordpass game mode with text-input answers.
-2. Add question difficulty indicators.
-3. Leaderboard UI.
+The application surface summarized here is already implemented, but these points are still not closed as a fully validated cross-platform baseline:
 
-### Phase 2 - Google Sign-In hardening
-1. Configure Firebase projects and credentials (see FIREBASE_SETUP.md).
-2. Integrate platform-specific sign-in SDK pieces.
-3. Add token lifecycle handling.
-
-### Phase 3 - Games API alignment
-1. Verify GamesHttpClient URL paths match actual backend routes.
-2. Test real game data from backend (stg/prod environments).
-3. Add retry/backoff strategy for HTTP calls.
-
-### Phase 4 - Sync engine
-1. Add background sync for unsynced game results.
-2. Add retry/backoff strategy.
-3. Add sync state indicators in UI.
-
-### Phase 5 - Quality & release
-1. Add ViewModel unit tests.
-2. Add repository integration tests.
-3. Release signing keystore creation.
-4. Bundle Syne + Inter font .ttf files.
-5. Improve error and loading UX.
+1. iOS Google Sign-In and Desktop OAuth sign-in remain incomplete.
+2. Release keystore creation and bundled font assets are still pending.
+3. Real stg/prod verification of some game HTTP paths remains outstanding.
+4. Some quality gates are still open, especially ViewModel and repository automated coverage.
 
 ## MVP checklist
 
