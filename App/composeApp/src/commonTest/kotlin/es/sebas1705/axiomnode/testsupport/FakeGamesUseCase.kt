@@ -51,6 +51,10 @@ class FakeGamesUseCase : GamesUseCase {
         private set
     var lastRecordedResult: GameResult? = null
         private set
+    var lastGeneratedGameType: GameType? = null
+        private set
+    var lastGeneratedLetters: String? = null
+        private set
     var recentResultsCalls: Int = 0
         private set
     var gameStatsCalls: Int = 0
@@ -70,8 +74,12 @@ class FakeGamesUseCase : GamesUseCase {
         language: String,
         numQuestions: Int,
         difficultyPercentage: Int,
+        gameType: GameType,
+        letters: String?,
     ): Result<Game> {
         generateGameCalls++
+        lastGeneratedGameType = gameType
+        lastGeneratedLetters = letters
         return generateGameResult
     }
 

@@ -4,6 +4,7 @@ import es.sebas1705.axiomnode.domain.models.Game
 import es.sebas1705.axiomnode.domain.models.GameCatalog
 import es.sebas1705.axiomnode.domain.models.GameResult
 import es.sebas1705.axiomnode.domain.models.GameStats
+import es.sebas1705.axiomnode.domain.models.GameType
 
 /**
  * Casos de uso para juegos (Quiz y Wordpass).
@@ -16,6 +17,8 @@ interface GamesUseCase {
         language: String,
         numQuestions: Int = 10,
         difficultyPercentage: Int = 50,
+        gameType: GameType = GameType.QUIZ,
+        letters: String? = null,
     ): Result<Game>
     
     suspend fun getRandomGames(

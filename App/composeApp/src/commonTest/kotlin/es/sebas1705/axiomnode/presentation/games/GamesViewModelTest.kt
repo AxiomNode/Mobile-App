@@ -1,5 +1,6 @@
 package es.sebas1705.axiomnode.presentation.games
 
+import es.sebas1705.axiomnode.domain.models.GameType
 import es.sebas1705.axiomnode.testsupport.FakeGamesUseCase
 import es.sebas1705.axiomnode.testsupport.MainDispatcherRule
 import es.sebas1705.axiomnode.testsupport.sampleGame
@@ -120,5 +121,29 @@ class GamesViewModelTest {
         val state = viewModel.state.value
         assertEquals(listOf("a"), state.games.map { it.id })
         assertEquals("quota", state.error)
+    }
+
+    @Test
+    fun `generateQuizGame sends quiz mode to use case`() = runTest {
+        val viewModel = GamesViewModel(useCase)
+        useCase.generateGameResult = Result.success(sampleGame("quiz-generated", gameType = GameType.QUIZ))
+
+        viewModel.generateQuizGame(categoryId = "math", language = "es")
+
+        assertEquals(GameType.QUIZ, useCase.lastGeneratedGameType)
+        assertNull(useCase.lastGeneratedLetters)
+        assertTrue(viewModel.state.value.games.any { it.id == "quiz-generated" })
+    }
+
+    @Test
+    fun `generateWordpassGame sends wordpass mode and letters to use case`() = runTest {
+        val viewModel = GamesViewModel(useCase)
+        useCase.generateGameResult = Result.success(sampleGame("wordpass-generated", gameType = GameType.WORDPASS))
+
+        viewModel.generateWordpassGame(categoryId = "history", language = "es", letters = "ABC")
+
+        assertEquals(GameType.WORDPASS, useCase.lastGeneratedGameType)
+        assertEquals("ABC", useCase.lastGeneratedLetters)
+        assertTrue(viewModel.state.value.games.any { it.id == "wordpass-generated" })
     }
 }

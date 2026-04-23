@@ -28,6 +28,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -165,6 +166,41 @@ fun GamesScreen(
                                 ),
                             )
                         }
+                    }
+                }
+
+                val selectedCategory = state.selectedCategoryId ?: catalog.categories.first().id
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Button(
+                        onClick = {
+                            viewModel.generateQuizGame(
+                                categoryId = selectedCategory,
+                                language = state.selectedLanguage,
+                            )
+                        },
+                        modifier = Modifier.weight(1f),
+                        enabled = !state.isLoading,
+                        shape = RoundedCornerShape(12.dp),
+                    ) {
+                        Text("Generar Quiz")
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            viewModel.generateWordpassGame(
+                                categoryId = selectedCategory,
+                                language = state.selectedLanguage,
+                            )
+                        },
+                        modifier = Modifier.weight(1f),
+                        enabled = !state.isLoading,
+                        shape = RoundedCornerShape(12.dp),
+                    ) {
+                        Text("Generar Wordpass")
                     }
                 }
             }

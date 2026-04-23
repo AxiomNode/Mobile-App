@@ -55,17 +55,26 @@ class GamesRepository(
         language: String,
         numQuestions: Int,
         difficultyPercentage: Int,
+        gameType: GameType,
+        letters: String?,
     ): Result<Game> = withContext(Dispatchers.IO) {
         if (config.isDevAuth) {
-            return@withContext Result.success(createDevQuizGame(categoryId, language, numQuestions))
+            val game = when (gameType) {
+                GameType.QUIZ -> createDevQuizGame(categoryId, language, numQuestions)
+                GameType.WORDPASS -> createDevWordpassGame(categoryId, language, numQuestions)
+            }
+            return@withContext Result.success(game)
         }
         val request = GameGenerateRequest(
             language = language,
             categoryId = categoryId,
+            itemCount = numQuestions,
             numQuestions = numQuestions,
             difficultyPercentage = difficultyPercentage,
+            letters = letters,
+            requestedBy = "api",
         )
-        httpClient.generateGame(request, authToken)
+        httpClient.generateGame(request, authToken, gameType)
             .onSuccess { game ->
                 gameDao.insertGame(GameEntity.fromDomain(game))
             }
@@ -79,7 +88,11 @@ class GamesRepository(
         if (config.isDevAuth) {
             val games = (1..count).map { i ->
                 val cat = devCategories.random()
-                createDevQuizGame(cat.first, language, 5)
+                if (i % 2 == 0) {
+                    createDevWordpassGame(cat.first, language, 5)
+                } else {
+                    createDevQuizGame(cat.first, language, 5)
+                }
             }
             return@withContext Result.success(games)
         }
@@ -181,6 +194,21 @@ class GamesRepository(
         )
     }
 
+    private fun createDevWordpassGame(categoryId: String, language: String, numQuestions: Int): Game {
+        devGameCounter++
+        val catName = devCategories.find { it.first == categoryId }?.second ?: categoryId
+        val words = devWordpassBank[categoryId] ?: devWordpassBank["ciencia"]!!
+
+        return Game(
+            id = "dev-wordpass-$devGameCounter",
+            gameType = GameType.WORDPASS,
+            categoryId = categoryId,
+            categoryName = catName,
+            language = language,
+            questions = words.shuffled().take(numQuestions),
+        )
+    }
+
     private val devQuestionBank: Map<String, List<Question>> = mapOf(
         "ciencia" to listOf(
             Question("q1", "¿Cuál es el planeta más grande del sistema solar?", listOf("Marte", "Júpiter", "Saturno", "Neptuno"), "Júpiter"),
@@ -226,6 +254,44 @@ class GamesRepository(
             Question("d5", "¿Cuál es el deporte más popular del mundo?", listOf("Baloncesto", "Cricket", "Fútbol", "Tenis"), "Fútbol"),
             Question("d6", "¿Cuánto dura un partido de baloncesto NBA?", listOf("40 min", "48 min", "60 min", "36 min"), "48 min"),
             Question("d7", "¿En qué deporte se usa un 'shuttlecock'?", listOf("Tenis", "Bádminton", "Squash", "Ping-pong"), "Bádminton"),
+        ),
+    )
+
+    private val devWordpassBank: Map<String, List<Question>> = mapOf(
+        "ciencia" to listOf(
+            Question("w1", "Elemento quimico esencial para respirar", emptyList(), "Oxigeno"),
+            Question("w2", "Planeta conocido como el planeta rojo", emptyList(), "Marte"),
+            Question("w3", "Organo que bombea la sangre", emptyList(), "Corazon"),
+            Question("w4", "Unidad basica de la vida", emptyList(), "Celula"),
+            Question("w5", "Proceso por el que las plantas producen alimento", emptyList(), "Fotosintesis"),
+        ),
+        "historia" to listOf(
+            Question("wh1", "Imperio de Roma", emptyList(), "Romano"),
+            Question("wh2", "Anio de llegada de Colon a America", emptyList(), "1492"),
+            Question("wh3", "Muro que cayo en 1989", emptyList(), "Berlin"),
+            Question("wh4", "Civilizacion de Machu Picchu", emptyList(), "Inca"),
+            Question("wh5", "Movimiento de 1789 en Francia", emptyList(), "Revolucion"),
+        ),
+        "geografia" to listOf(
+            Question("wg1", "Oceano mas grande", emptyList(), "Pacifico"),
+            Question("wg2", "Pais mas extenso", emptyList(), "Rusia"),
+            Question("wg3", "Desierto mas grande", emptyList(), "Antartico"),
+            Question("wg4", "Rio mas largo", emptyList(), "Amazonas"),
+            Question("wg5", "Capital de Australia", emptyList(), "Canberra"),
+        ),
+        "tecnologia" to listOf(
+            Question("wt1", "Lenguaje creado por Guido van Rossum", emptyList(), "Python"),
+            Question("wt2", "Siglas de unidad central de proceso", emptyList(), "CPU"),
+            Question("wt3", "Empresa creadora de Android", emptyList(), "Google"),
+            Question("wt4", "Sistema operativo creado por Linus", emptyList(), "Linux"),
+            Question("wt5", "Protocolo principal de la web", emptyList(), "HTTP"),
+        ),
+        "deportes" to listOf(
+            Question("wd1", "Deporte con once jugadores por equipo", emptyList(), "Futbol"),
+            Question("wd2", "Deporte del Tour de Francia", emptyList(), "Ciclismo"),
+            Question("wd3", "Ciudad anfitriona JJOO 2020", emptyList(), "Tokio"),
+            Question("wd4", "Deporte con raqueta y volante", emptyList(), "Badminton"),
+            Question("wd5", "Liga donde se juega la NBA", emptyList(), "Baloncesto"),
         ),
     )
 }

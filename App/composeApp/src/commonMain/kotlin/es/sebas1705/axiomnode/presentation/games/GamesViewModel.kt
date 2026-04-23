@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import es.sebas1705.axiomnode.domain.models.Game
 import es.sebas1705.axiomnode.domain.models.GameCatalog
+import es.sebas1705.axiomnode.domain.models.GameType
 import es.sebas1705.axiomnode.domain.usecases.GamesUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -72,6 +73,38 @@ class GamesViewModel(
     }
 
     fun generateGame(categoryId: String, language: String) {
+        generateGameByMode(
+            categoryId = categoryId,
+            language = language,
+            gameType = GameType.QUIZ,
+            letters = null,
+        )
+    }
+
+    fun generateQuizGame(categoryId: String, language: String) {
+        generateGameByMode(
+            categoryId = categoryId,
+            language = language,
+            gameType = GameType.QUIZ,
+            letters = null,
+        )
+    }
+
+    fun generateWordpassGame(categoryId: String, language: String, letters: String? = null) {
+        generateGameByMode(
+            categoryId = categoryId,
+            language = language,
+            gameType = GameType.WORDPASS,
+            letters = letters,
+        )
+    }
+
+    private fun generateGameByMode(
+        categoryId: String,
+        language: String,
+        gameType: GameType,
+        letters: String?,
+    ) {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
             gamesUseCase.generateGame(
@@ -79,6 +112,8 @@ class GamesViewModel(
                 language = language,
                 numQuestions = 10,
                 difficultyPercentage = 50,
+                gameType = gameType,
+                letters = letters,
             )
                 .onSuccess { game ->
                     _state.value = _state.value.copy(
