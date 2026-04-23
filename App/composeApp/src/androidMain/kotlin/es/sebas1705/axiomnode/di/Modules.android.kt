@@ -1,6 +1,7 @@
 package es.sebas1705.axiomnode.di
 
 import androidx.room.Room
+import es.sebas1705.axiomnode.auth.GoogleSignInClient
 import es.sebas1705.axiomnode.auth.GoogleSignInService
 import es.sebas1705.axiomnode.config.AppConfig
 import es.sebas1705.axiomnode.data.db.AxiomNodeDatabase
@@ -27,8 +28,8 @@ actual val platformModule: Module
                 .build()
         }
 
-        single { GoogleSignInService(get(), get<AppConfig>()) }
-        viewModel { AuthViewModel(get<AuthUseCase>(), get<GoogleSignInService>()) }
+        single<GoogleSignInClient> { GoogleSignInService(get(), get<AppConfig>()) }
+        viewModel { AuthViewModel(get<AuthUseCase>(), get<GoogleSignInClient>()) }
         viewModel { GamesViewModel(get<GamesUseCase>()) }
         viewModel { GamePlayViewModel(get<GamesUseCase>()) }
     }

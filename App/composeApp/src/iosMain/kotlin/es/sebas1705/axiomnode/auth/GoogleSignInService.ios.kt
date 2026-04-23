@@ -9,8 +9,8 @@ import es.sebas1705.axiomnode.config.AppConfig
  */
 actual class GoogleSignInService(
     private val config: AppConfig,
-) {
-    actual suspend fun signIn(): GoogleSignInResult {
+) : GoogleSignInClient {
+    actual override suspend fun signIn(): GoogleSignInResult {
         if (config.isDevAuth) {
             // Dev mode: return a fake token for local testing
             return GoogleSignInResult.Success(
@@ -22,7 +22,7 @@ actual class GoogleSignInService(
         return GoogleSignInResult.Error("Firebase iOS Sign-In not yet implemented. Set AUTH_MODE=dev for testing.")
     }
 
-    actual suspend fun signOut() {
+    actual override suspend fun signOut() {
         // No-op for now
     }
 }

@@ -2,8 +2,8 @@ package es.sebas1705.axiomnode.presentation.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import es.sebas1705.axiomnode.auth.GoogleSignInClient
 import es.sebas1705.axiomnode.auth.GoogleSignInResult
-import es.sebas1705.axiomnode.auth.GoogleSignInService
 import es.sebas1705.axiomnode.domain.models.User
 import es.sebas1705.axiomnode.domain.usecases.AuthUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,7 +20,7 @@ data class AuthState(
 
 class AuthViewModel(
     private val authUseCase: AuthUseCase,
-    private val googleSignInService: GoogleSignInService,
+    private val googleSignInService: GoogleSignInClient,
 ) : ViewModel() {
     private val _state = MutableStateFlow(AuthState())
     val state: StateFlow<AuthState> = _state.asStateFlow()

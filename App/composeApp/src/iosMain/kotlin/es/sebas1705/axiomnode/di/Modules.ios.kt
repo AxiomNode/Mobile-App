@@ -2,6 +2,7 @@ package es.sebas1705.axiomnode.di
 
 import androidx.room.Room
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
+import es.sebas1705.axiomnode.auth.GoogleSignInClient
 import es.sebas1705.axiomnode.auth.GoogleSignInService
 import es.sebas1705.axiomnode.config.AppConfig
 import es.sebas1705.axiomnode.data.db.AxiomNodeDatabase
@@ -35,8 +36,8 @@ actual val platformModule: Module
                 .build()
         }
 
-        single { GoogleSignInService(get<AppConfig>()) }
-        factory { AuthViewModel(get<AuthUseCase>(), get<GoogleSignInService>()) }
+        single<GoogleSignInClient> { GoogleSignInService(get<AppConfig>()) }
+        factory { AuthViewModel(get<AuthUseCase>(), get<GoogleSignInClient>()) }
         factory { GamesViewModel(get<GamesUseCase>()) }
         factory { GamePlayViewModel(get<GamesUseCase>()) }
     }

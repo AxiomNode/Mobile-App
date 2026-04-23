@@ -33,7 +33,7 @@ private const val TAG = "GoogleSignInService"
 actual class GoogleSignInService(
     private val context: Context,
     private val config: AppConfig,
-) {
+) : GoogleSignInClient {
     private val activity: Activity = context as? Activity
         ?: throw IllegalArgumentException(
             "GoogleSignInService requires an Activity context. " +
@@ -42,7 +42,7 @@ actual class GoogleSignInService(
     private val credentialManager = CredentialManager.create(context)
     private val firebaseAuth = FirebaseAuth.getInstance()
 
-    actual suspend fun signIn(): GoogleSignInResult {
+    actual override suspend fun signIn(): GoogleSignInResult {
         return try {
             // Try the Sign-In with Google button flow (more reliable on emulators)
             signInWithGoogleButton()
@@ -161,7 +161,7 @@ actual class GoogleSignInService(
         }
     }
 
-    actual suspend fun signOut() {
+    actual override suspend fun signOut() {
         try {
             firebaseAuth.signOut()
             credentialManager.clearCredentialState(
