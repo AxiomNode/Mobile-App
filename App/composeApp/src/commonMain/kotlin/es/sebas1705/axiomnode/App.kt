@@ -11,6 +11,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -26,9 +27,11 @@ import es.sebas1705.axiomnode.presentation.gameplay.GamePlayScreen
 import es.sebas1705.axiomnode.presentation.gameplay.GamePlayViewModel
 import es.sebas1705.axiomnode.presentation.games.GamesScreen
 import es.sebas1705.axiomnode.presentation.games.GamesViewModel
-import es.sebas1705.axiomnode.presentation.history.HistoryScreen
+import es.sebas1705.axiomnode.presentation.loading.LoadingScreen
 import es.sebas1705.axiomnode.presentation.profile.ProfileScreen
 import es.sebas1705.axiomnode.ui.AppTheme
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.delay
 import org.koin.compose.KoinApplication
 import org.koin.compose.koinInject
 import org.koin.dsl.KoinAppDeclaration
@@ -37,13 +40,13 @@ import org.koin.dsl.KoinAppDeclaration
 // Navigation destinations
 // ─────────────────────────────────────────────────────────────────────────────
 enum class AppScreen {
+    LOADING,
     AUTH,
     MAIN,
 }
 
 enum class MainTab(val label: String, val icon: String) {
-    GAMES("Juegos", "🎮"),
-    HISTORY("Historial", "📊"),
+    HOME("Inicio", "🏠"),
     PROFILE("Perfil", "👤"),
 }
 
@@ -80,8 +83,20 @@ fun App(
 fun AppNavigation(modifier: Modifier = Modifier) {
     val authViewModel: AuthViewModel = koinInject()
     val gamesViewModel: GamesViewModel = koinInject()
+    val authState by authViewModel.state.collectAsStateWithLifecycle()
 
-    var currentScreen by rememberSaveable { mutableStateOf(AppScreen.AUTH) }
+    var currentScreen by rememberSaveable { mutableStateOf(AppScreen.LOADING) }
+    var splashCompleted by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        delay(1200)
+        splashCompleted = true
+    }
+
+    LaunchedEffect(splashCompleted, authState.isAuthenticated) {
+        if (!splashCompleted) return@LaunchedEffect
+        currentScreen = if (authState.isAuthenticated) AppScreen.MAIN else AppScreen.AUTH
+    }
 
     Crossfade(
         targetState = currentScreen,
@@ -90,6 +105,10 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         label = "screen-crossfade",
     ) { screen ->
         when (screen) {
+            AppScreen.LOADING -> {
+                LoadingScreen()
+            }
+
             AppScreen.AUTH -> {
                 AuthScreen(
                     viewModel = authViewModel,
@@ -117,7 +136,7 @@ private fun MainScaffold(
     gamesViewModel: GamesViewModel,
     onSignOut: () -> Unit,
 ) {
-    var selectedTab by rememberSaveable { mutableStateOf(MainTab.GAMES) }
+    var selectedTab by rememberSaveable { mutableStateOf(MainTab.HOME) }
     var activeGame by remember { mutableStateOf<Game?>(null) }
 
     // Find the selected game from the games list
@@ -166,17 +185,14 @@ private fun MainScaffold(
             label = "tab-crossfade",
         ) { tab ->
             when (tab) {
-                MainTab.GAMES -> {
+                MainTab.HOME -> {
                     GamesScreen(
+                        screenTitle = "Inicio",
                         viewModel = gamesViewModel,
                         onGameSelected = { gameId ->
                             activeGame = games.find { it.id == gameId }
                         },
                     )
-                }
-
-                MainTab.HISTORY -> {
-                    HistoryScreen()
                 }
 
                 MainTab.PROFILE -> {

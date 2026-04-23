@@ -49,6 +49,7 @@ import es.sebas1705.axiomnode.domain.models.GameType
 fun GamesScreen(
     viewModel: GamesViewModel,
     onGameSelected: (gameId: String) -> Unit,
+    screenTitle: String = "Juegos",
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -64,7 +65,7 @@ fun GamesScreen(
             LargeTopAppBar(
                 title = {
                     Text(
-                        text = "Juegos",
+                        text = screenTitle,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
