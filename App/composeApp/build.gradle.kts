@@ -2,6 +2,8 @@ import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.util.Properties
+import java.net.URI
+import org.gradle.api.GradleException
 
 // ---------------------------------------------------------------------------
 // Environment configuration helpers
@@ -46,6 +48,30 @@ val isMacOs = System.getProperty("os.name").startsWith("Mac", ignoreCase = true)
 fun envVal(key: String, default: String = ""): String =
     envProps.getProperty(key, default).trim()
 
+fun validateApiBaseUrl(apiBaseUrl: String, env: String) {
+    if (!apiBaseUrl.startsWith("http://") && !apiBaseUrl.startsWith("https://")) {
+        throw GradleException("API_BASE_URL must start with http:// or https:// (current: $apiBaseUrl)")
+    }
+
+    val host = runCatching { URI(apiBaseUrl).host?.lowercase() }.getOrNull()
+        ?: throw GradleException("API_BASE_URL must be a valid absolute URL (current: $apiBaseUrl)")
+
+    val localEdgeHosts = setOf("localhost", "10.0.2.2", "127.0.0.1")
+    val internalPrefixes = listOf("microservice-", "bff-", "ai-engine", "api-gateway")
+
+    if (internalPrefixes.any { host.startsWith(it) }) {
+        throw GradleException(
+            "API_BASE_URL must point to the public edge gateway (domain/local edge), not internal host '$host'",
+        )
+    }
+
+    if (env != "dev" && host in localEdgeHosts) {
+        throw GradleException(
+            "API_BASE_URL for env '$env' must use the gateway domain, not local edge host '$host'",
+        )
+    }
+}
+
 logger.lifecycle("🔧 AxiomNode config-time environment: $activeEnv")
 
 // ---------------------------------------------------------------------------
@@ -83,6 +109,9 @@ val generateConfigTask = tasks.register("generateAppConfig") {
         fun prop(key: String, default: String = ""): String =
             props.getProperty(key, default).trim()
 
+        val apiBaseUrl = prop("API_BASE_URL", "http://10.0.2.2:7005")
+        validateApiBaseUrl(apiBaseUrl, execEnv)
+
         val pkg = "es.sebas1705.axiomnode.config"
         val dir = File(outputDir, pkg.replace('.', '/'))
         dir.mkdirs()
@@ -95,7 +124,7 @@ val generateConfigTask = tasks.register("generateAppConfig") {
             | */
             |object GeneratedConfig {
             |    const val ENVIRONMENT = "${execEnv.uppercase()}"
-            |    const val API_BASE_URL = "${prop("API_BASE_URL", "http://10.0.2.2:7005")}"
+            |    const val API_BASE_URL = "$apiBaseUrl"
             |    const val AUTH_MODE = "${prop("AUTH_MODE", "dev")}"
             |    const val FIREBASE_API_KEY = "${prop("FIREBASE_API_KEY")}"
             |    const val FIREBASE_AUTH_DOMAIN = "${prop("FIREBASE_AUTH_DOMAIN")}"
@@ -108,7 +137,7 @@ val generateConfigTask = tasks.register("generateAppConfig") {
             |}
             """.trimMargin()
         )
-        logger.lifecycle("✅ GeneratedConfig.kt → env=$execEnv, API_BASE_URL=${prop("API_BASE_URL", "http://10.0.2.2:7005")}")
+        logger.lifecycle("✅ GeneratedConfig.kt → env=$execEnv, API_BASE_URL=$apiBaseUrl")
     }
 }
 
