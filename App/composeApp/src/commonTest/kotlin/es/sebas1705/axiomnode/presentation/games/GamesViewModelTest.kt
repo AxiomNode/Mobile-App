@@ -146,4 +146,40 @@ class GamesViewModelTest {
         assertEquals("ABC", useCase.lastGeneratedLetters)
         assertTrue(viewModel.state.value.games.any { it.id == "wordpass-generated" })
     }
+
+    @Test
+    fun `loadRandomGames sets advisory when content is repetitive`() = runTest {
+        val repeated = sampleGame(
+            id = "rep",
+            questions = List(12) {
+                es.sebas1705.axiomnode.domain.models.Question(
+                    id = "q$it",
+                    text = "Pregunta repetida",
+                    options = listOf("a", "b"),
+                    correctAnswer = "a",
+                )
+            },
+        )
+        useCase.randomGamesResult = Result.success(listOf(repeated))
+        val viewModel = GamesViewModel(useCase)
+
+        viewModel.loadRandomGames(count = 1)
+
+        assertNotNull(viewModel.state.value.contentAdvice)
+    }
+
+    @Test
+    fun `resolveGameForPlay returns cached game when not in current state`() = runTest {
+        val cached = sampleGame("cached-only")
+        useCase.cachedGameResult = Result.success(cached)
+        val viewModel = GamesViewModel(useCase)
+        var resolvedId: String? = null
+
+        viewModel.resolveGameForPlay("cached-only") { game ->
+            resolvedId = game?.id
+        }
+
+        assertEquals("cached-only", resolvedId)
+        assertEquals(1, useCase.cachedGameByIdCalls)
+    }
 }

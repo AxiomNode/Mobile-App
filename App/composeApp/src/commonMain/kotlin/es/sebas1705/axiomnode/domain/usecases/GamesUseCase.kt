@@ -26,6 +26,10 @@ interface GamesUseCase {
         language: String = "es",
         categoryId: String? = null,
     ): Result<List<Game>>
+
+    suspend fun getCachedGameById(gameId: String): Result<Game?>
+
+    suspend fun getPlayedGamesHistory(limit: Int = 20): Result<List<Game>>
     
     suspend fun recordGameResult(result: GameResult): Result<Unit>
 

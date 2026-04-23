@@ -1,6 +1,8 @@
 package es.sebas1705.axiomnode.data.repositories
 
 import es.sebas1705.axiomnode.config.AppConfig
+import es.sebas1705.axiomnode.data.db.UserProfileDao
+import es.sebas1705.axiomnode.data.entities.UserProfileEntity
 import es.sebas1705.axiomnode.data.network.AuthHttpClient
 import es.sebas1705.axiomnode.domain.models.User
 import es.sebas1705.axiomnode.domain.models.UserRole
@@ -12,6 +14,7 @@ import es.sebas1705.axiomnode.domain.usecases.AuthUseCase
  */
 class AuthRepository(
     private val httpClient: AuthHttpClient,
+    private val userProfileDao: UserProfileDao,
     private val config: AppConfig,
 ) : AuthUseCase {
     private var currentUser: User? = null
@@ -34,17 +37,40 @@ class AuthRepository(
             )
             currentUser = user
             authToken = idToken
+            userProfileDao.upsertProfile(UserProfileEntity.fromDomain(user))
             return Result.success(user)
         }
 
         return httpClient.syncSessionFromFirebase(idToken)
             .map { user ->
-                // Merge Google metadata when backend returns empty values
                 user.copy(
                     email = email.ifEmpty { user.email },
                     displayName = displayName ?: user.displayName,
                     photoUrl = photoUrl ?: user.photoUrl,
                 )
+            }
+            .mapCatching { sessionUser ->
+                val enriched = httpClient.getUserProfile(idToken).getOrNull()
+                val cached = userProfileDao.getLastProfile()?.toDomain()
+                val enrichedUid = enriched?.firebaseUid
+                val enrichedEmail = enriched?.email
+
+                // Prefer newest backend profile. If it fails, keep usable data from cache/session.
+                val resolved = (enriched ?: cached ?: sessionUser).copy(
+                    firebaseUid = if (enrichedUid.isNullOrBlank()) sessionUser.firebaseUid else enrichedUid,
+                    email = when {
+                        !email.isBlank() -> email
+                        !enrichedEmail.isNullOrBlank() -> enrichedEmail
+                        !cached?.email.isNullOrBlank() -> cached.email
+                        else -> sessionUser.email
+                    },
+                    displayName = displayName ?: enriched?.displayName ?: cached?.displayName ?: sessionUser.displayName,
+                    photoUrl = photoUrl ?: enriched?.photoUrl ?: cached?.photoUrl ?: sessionUser.photoUrl,
+                    role = enriched?.role ?: cached?.role ?: sessionUser.role,
+                )
+
+                userProfileDao.upsertProfile(UserProfileEntity.fromDomain(resolved))
+                resolved
             }
             .onSuccess { user ->
                 currentUser = user
@@ -53,11 +79,25 @@ class AuthRepository(
     }
 
     override suspend fun getCurrentUser(): Result<User?> {
-        return if (currentUser != null && authToken != null) {
-            Result.success(currentUser)
-        } else {
-            Result.success(null)
+        currentUser?.let { return Result.success(it) }
+
+        val cachedProfile = userProfileDao.getLastProfile()?.toDomain()
+        val token = authToken.orEmpty()
+
+        if (token.isBlank()) {
+            currentUser = cachedProfile
+            return Result.success(cachedProfile)
         }
+
+        return httpClient.getUserProfile(token)
+            .onSuccess { remote ->
+                currentUser = remote
+                userProfileDao.upsertProfile(UserProfileEntity.fromDomain(remote))
+            }
+            .map { it as User? }
+            .recoverCatching {
+                cachedProfile
+            }
     }
 
     override suspend fun signOut(): Result<Unit> {

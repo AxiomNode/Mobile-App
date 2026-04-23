@@ -130,6 +130,29 @@ fun GamesScreen(
                 }
             }
 
+            AnimatedVisibility(
+                visible = state.contentAdvice != null && !state.isLoading,
+                enter = fadeIn(),
+                exit = fadeOut(),
+            ) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    Text(
+                        text = state.contentAdvice ?: "",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.padding(16.dp),
+                    )
+                }
+            }
+
             // ── Category filter chips ────────────────────────────────
             state.catalog?.let { catalog ->
                 if (catalog.categories.isNotEmpty()) {

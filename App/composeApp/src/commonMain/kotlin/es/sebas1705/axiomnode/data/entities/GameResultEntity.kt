@@ -4,6 +4,7 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import es.sebas1705.axiomnode.domain.models.GameResult
 import es.sebas1705.axiomnode.domain.models.GameType
+import kotlin.time.Clock
 
 /**
  * Entidad Room para historial de juegos jugados.
@@ -48,7 +49,7 @@ data class GameResultEntity(
                 outcome = result.outcome.name,
                 score = result.score,
                 durationSeconds = result.durationSeconds,
-                timestamp = result.timestamp,
+                timestamp = if (result.timestamp > 0L) result.timestamp else Clock.System.now().toEpochMilliseconds(),
             )
         }
     }

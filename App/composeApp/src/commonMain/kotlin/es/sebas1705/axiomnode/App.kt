@@ -139,9 +139,6 @@ private fun MainScaffold(
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.HOME) }
     var activeGame by remember { mutableStateOf<Game?>(null) }
 
-    // Find the selected game from the games list
-    val games = gamesViewModel.state.value.games
-
     activeGame?.let { game ->
         val gamePlayViewModel: GamePlayViewModel = koinInject()
         GamePlayScreen(
@@ -190,7 +187,9 @@ private fun MainScaffold(
                         screenTitle = "Inicio",
                         viewModel = gamesViewModel,
                         onGameSelected = { gameId ->
-                            activeGame = games.find { it.id == gameId }
+                            gamesViewModel.resolveGameForPlay(gameId) { resolved ->
+                                activeGame = resolved
+                            }
                         },
                     )
                 }

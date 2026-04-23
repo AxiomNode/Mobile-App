@@ -3,7 +3,9 @@ package es.sebas1705.axiomnode.data.repositories
 import es.sebas1705.axiomnode.config.AppConfig
 import es.sebas1705.axiomnode.data.db.GameDao
 import es.sebas1705.axiomnode.data.db.GameResultDao
+import es.sebas1705.axiomnode.data.db.PlayedGameDao
 import es.sebas1705.axiomnode.data.entities.GameEntity
+import es.sebas1705.axiomnode.data.entities.PlayedGameEntity
 import es.sebas1705.axiomnode.data.entities.GameResultEntity
 import es.sebas1705.axiomnode.data.network.GameGenerateRequest
 import es.sebas1705.axiomnode.data.network.GameResultSyncEngine
@@ -30,6 +32,7 @@ class GamesRepository(
     private val httpClient: GamesHttpClient,
     private val gameDao: GameDao,
     private val gameResultDao: GameResultDao,
+    private val playedGameDao: PlayedGameDao,
     private val syncEngine: GameResultSyncEngine,
     private val config: AppConfig,
 ) : GamesUseCase {
@@ -63,6 +66,7 @@ class GamesRepository(
                 GameType.QUIZ -> createDevQuizGame(categoryId, language, numQuestions)
                 GameType.WORDPASS -> createDevWordpassGame(categoryId, language, numQuestions)
             }
+            gameDao.insertGame(GameEntity.fromDomain(game))
             return@withContext Result.success(game)
         }
         val request = GameGenerateRequest(
@@ -74,10 +78,20 @@ class GamesRepository(
             letters = letters,
             requestedBy = "api",
         )
-        httpClient.generateGame(request, authToken, gameType)
+        val remote = httpClient.generateGame(request, authToken, gameType)
             .onSuccess { game ->
                 gameDao.insertGame(GameEntity.fromDomain(game))
             }
+
+        if (remote.isSuccess) return@withContext remote
+
+        val cached = findCachedGameForGeneration(
+            categoryId = categoryId,
+            language = language,
+            gameType = gameType,
+            numQuestions = numQuestions,
+        )
+        if (cached != null) Result.success(cached) else remote
     }
 
     override suspend fun getRandomGames(
@@ -94,18 +108,65 @@ class GamesRepository(
                     createDevQuizGame(cat.first, language, 5)
                 }
             }
+            gameDao.insertGames(games.map { GameEntity.fromDomain(it) })
             return@withContext Result.success(games)
         }
-        httpClient.getRandomGames(count, language, categoryId)
+
+        val remote = httpClient.getRandomGames(count, language, categoryId)
             .onSuccess { games ->
                 gameDao.insertGames(games.map { GameEntity.fromDomain(it) })
             }
+
+        if (remote.isSuccess) return@withContext remote
+
+        val localGames = getOfflinePlayableGames(
+            count = count,
+            language = language,
+            categoryId = categoryId,
+        )
+        if (localGames.isNotEmpty()) Result.success(localGames) else remote
+    }
+
+    override suspend fun getCachedGameById(gameId: String): Result<Game?> = withContext(Dispatchers.IO) {
+        try {
+            val fromCache = gameDao.getGameById(gameId)?.toDomain()
+                ?: playedGameDao.getLatestPlayedGameByGameId(gameId)?.toDomainGame()
+            Result.success(fromCache)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getPlayedGamesHistory(limit: Int): Result<List<Game>> = withContext(Dispatchers.IO) {
+        try {
+            val history = playedGameDao.getRecentPlayedGames(limit)
+                .map { it.toDomainGame() }
+                .distinctBy { it.id }
+            Result.success(history)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     override suspend fun recordGameResult(result: GameResult): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val entity = GameResultEntity.fromDomain(result)
             gameResultDao.insertResult(entity)
+
+            val game = gameDao.getGameById(result.gameId)?.toDomain()
+                ?: playedGameDao.getLatestPlayedGameByGameId(result.gameId)?.toDomainGame()
+
+            if (game != null) {
+                playedGameDao.insertPlayedGame(
+                    PlayedGameEntity.from(
+                        game = game,
+                        playedAt = entity.timestamp,
+                        outcome = result.outcome,
+                        score = result.score,
+                    ),
+                )
+            }
+
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -153,6 +214,53 @@ class GamesRepository(
 
     override suspend fun getPendingSyncCount(): Int = withContext(Dispatchers.IO) {
         syncEngine.getPendingCount()
+    }
+
+    private suspend fun getOfflinePlayableGames(
+        count: Int,
+        language: String,
+        categoryId: String?,
+    ): List<Game> {
+        val cached = gameDao.getRecentGames(limit = count * 4)
+            .map { it.toDomain() }
+        val played = playedGameDao.getRecentPlayedGames(limit = count * 4)
+            .map { it.toDomainGame() }
+
+        return (cached + played)
+            .asSequence()
+            .filter { game ->
+                game.language == language && (categoryId == null || game.categoryId == categoryId)
+            }
+            .distinctBy { it.id }
+            .take(count)
+            .toList()
+    }
+
+    private suspend fun findCachedGameForGeneration(
+        categoryId: String,
+        language: String,
+        gameType: GameType,
+        numQuestions: Int,
+    ): Game? {
+        val cached = gameDao.getRecentGames(limit = 250)
+            .map { it.toDomain() }
+        val played = playedGameDao.getRecentPlayedGames(limit = 250)
+            .map { it.toDomainGame() }
+
+        val candidate = (cached + played)
+            .firstOrNull { game ->
+                game.gameType == gameType &&
+                    game.categoryId == categoryId &&
+                    game.language == language &&
+                    game.questions.isNotEmpty()
+            }
+            ?: return null
+
+        return if (candidate.questions.size <= numQuestions) {
+            candidate
+        } else {
+            candidate.copy(questions = candidate.questions.take(numQuestions))
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────

@@ -48,6 +48,8 @@ val dataModule = module {
     // DAOs (resolved from the database provided by platformModule)
     single { get<AxiomNodeDatabase>().gameDao() }
     single { get<AxiomNodeDatabase>().gameResultDao() }
+    single { get<AxiomNodeDatabase>().playedGameDao() }
+    single { get<AxiomNodeDatabase>().userProfileDao() }
 
     // Network clients – receive AppConfig for base URLs
     single { AuthHttpClient(get(), get<AppConfig>().apiBaseUrl) }
@@ -60,6 +62,7 @@ val dataModule = module {
     single<AuthUseCase> {
         AuthRepository(
             httpClient = get<AuthHttpClient>(),
+            userProfileDao = get(),
             config = get<AppConfig>(),
         )
     }
@@ -68,6 +71,7 @@ val dataModule = module {
             httpClient = get<GamesHttpClient>(),
             gameDao = get(),
             gameResultDao = get(),
+            playedGameDao = get(),
             syncEngine = get<GameResultSyncEngine>(),
             config = get<AppConfig>(),
         )

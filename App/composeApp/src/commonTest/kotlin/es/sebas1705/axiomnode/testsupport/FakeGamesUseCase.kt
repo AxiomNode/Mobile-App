@@ -33,6 +33,8 @@ class FakeGamesUseCase : GamesUseCase {
     )
     var generateGameResult: Result<Game> = Result.success(sampleGame(id = "generated"))
     var randomGamesResult: Result<List<Game>> = Result.success(listOf(sampleGame("r1"), sampleGame("r2")))
+    var cachedGameResult: Result<Game?> = Result.success(null)
+    var playedGamesHistoryResult: Result<List<Game>> = Result.success(emptyList())
     var recordGameResultResult: Result<Unit> = Result.success(Unit)
     var recentResultsResult: Result<List<GameResult>> = Result.success(emptyList())
     var gameStatsResult: Result<GameStats> = Result.success(
@@ -46,6 +48,10 @@ class FakeGamesUseCase : GamesUseCase {
     var generateGameCalls: Int = 0
         private set
     var randomGamesCalls: Int = 0
+        private set
+    var cachedGameByIdCalls: Int = 0
+        private set
+    var playedGamesHistoryCalls: Int = 0
         private set
     var recordGameResultCalls: Int = 0
         private set
@@ -90,6 +96,16 @@ class FakeGamesUseCase : GamesUseCase {
     ): Result<List<Game>> {
         randomGamesCalls++
         return randomGamesResult
+    }
+
+    override suspend fun getCachedGameById(gameId: String): Result<Game?> {
+        cachedGameByIdCalls++
+        return cachedGameResult
+    }
+
+    override suspend fun getPlayedGamesHistory(limit: Int): Result<List<Game>> {
+        playedGamesHistoryCalls++
+        return playedGamesHistoryResult
     }
 
     override suspend fun recordGameResult(result: GameResult): Result<Unit> {

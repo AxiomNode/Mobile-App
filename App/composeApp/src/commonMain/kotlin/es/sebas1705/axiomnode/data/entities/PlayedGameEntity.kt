@@ -3,34 +3,36 @@ package es.sebas1705.axiomnode.data.entities
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import es.sebas1705.axiomnode.domain.models.Game
+import es.sebas1705.axiomnode.domain.models.GameOutcome
+import es.sebas1705.axiomnode.domain.models.GameType
 import es.sebas1705.axiomnode.domain.models.Question
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import kotlin.time.Clock
 
-/**
- * Entidad Room para almacenar juegos en cache local.
- */
-@Entity(tableName = "games")
-data class GameEntity(
-    @PrimaryKey
-    val id: String,
-    val gameType: String, // QUIZ, WORDPASS
+@Entity(tableName = "played_games")
+data class PlayedGameEntity(
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
+    val gameId: String,
+    val gameType: String,
     val categoryId: String,
     val categoryName: String,
     val language: String,
-    val questionsJson: String, // JSON serializado
-    val createdAt: Long = 0L,
+    val questionsJson: String,
+    val playedAt: Long,
+    val outcome: String,
+    val score: Int,
 ) {
-    fun toDomain(): Game {
+    fun toDomainGame(): Game {
         val questions = try {
             Json.decodeFromString<List<Question>>(questionsJson)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             emptyList()
         }
+
         return Game(
-            id = id,
-            gameType = es.sebas1705.axiomnode.domain.models.GameType.valueOf(gameType),
+            id = gameId,
+            gameType = GameType.valueOf(gameType),
             categoryId = categoryId,
             categoryName = categoryName,
             language = language,
@@ -39,17 +41,17 @@ data class GameEntity(
     }
 
     companion object {
-        fun fromDomain(game: Game): GameEntity {
-            return GameEntity(
-                id = game.id,
+        fun from(game: Game, playedAt: Long, outcome: GameOutcome, score: Int): PlayedGameEntity =
+            PlayedGameEntity(
+                gameId = game.id,
                 gameType = game.gameType.name,
                 categoryId = game.categoryId,
                 categoryName = game.categoryName,
                 language = game.language,
                 questionsJson = Json.encodeToString(game.questions),
-                createdAt = Clock.System.now().toEpochMilliseconds(),
+                playedAt = playedAt,
+                outcome = outcome.name,
+                score = score,
             )
-        }
     }
 }
-
