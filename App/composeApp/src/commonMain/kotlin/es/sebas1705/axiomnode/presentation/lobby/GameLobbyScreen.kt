@@ -74,6 +74,7 @@ fun GameLobbyScreen(
     var numQuestions by rememberSaveable { mutableStateOf(10) }
     var letters by rememberSaveable { mutableStateOf("") }
     var languageMenuOpen by remember { mutableStateOf(false) }
+    var warmUpRequested by rememberSaveable(gameType) { mutableStateOf(false) }
     val windowSize = LocalWindowSize.current
     val horizontalGutter = when (windowSize) {
         WindowSize.COMPACT -> 16.dp
@@ -93,9 +94,11 @@ fun GameLobbyScreen(
         viewModel.consumeGeneratedNavigation()
     }
 
-    // Al entrar al lobby intentamos traer contenido nuevo (si hay red) para mejorar variedad.
+    // Al entrar al lobby hacemos un intento best-effort de precarga.
+    // Si luego vuelve la conexion, reintentamos para refrescar contenido remoto.
     LaunchedEffect(gameType, isOnline) {
-        if (isOnline) {
+        if (!warmUpRequested || isOnline) {
+            warmUpRequested = true
             viewModel.warmUpPlayContent(count = 6)
         }
     }
