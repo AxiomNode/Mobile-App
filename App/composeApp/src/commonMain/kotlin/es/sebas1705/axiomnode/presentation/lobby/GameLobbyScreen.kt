@@ -100,6 +100,26 @@ fun GameLobbyScreen(
         }
     }
 
+    // Mantiene la logica previa: conservar filtros seleccionados cuando ya existian.
+    LaunchedEffect(state.selectedLanguage, state.catalog) {
+        val available = state.catalog?.languages.orEmpty()
+        if (available.any { it.code == state.selectedLanguage }) {
+            language = state.selectedLanguage
+        }
+    }
+
+    // Inicializa categoria para generar usando la seleccion previa o la primera disponible.
+    LaunchedEffect(state.catalog, state.selectedCategoryId) {
+        val categories = state.catalog?.categories.orEmpty()
+        if (categories.isEmpty()) return@LaunchedEffect
+
+        selectedCategory = when {
+            selectedCategory != null && categories.any { it.id == selectedCategory } -> selectedCategory
+            state.selectedCategoryId != null && categories.any { it.id == state.selectedCategoryId } -> state.selectedCategoryId
+            else -> categories.first().id
+        }
+    }
+
     // Ensure catalog is requested when entering the lobby (useful after transient STG failures).
     LaunchedEffect(state.catalog, state.isLoading) {
         if (state.catalog == null && !state.isLoading) {
@@ -154,7 +174,10 @@ fun GameLobbyScreen(
                         catalog.categories.forEach { cat ->
                             FilterChip(
                                 selected = selectedCategory == cat.id,
-                                onClick = { selectedCategory = cat.id },
+                                onClick = {
+                                    selectedCategory = cat.id
+                                    viewModel.setSelectedCategory(cat.id)
+                                },
                                 label = { Text(cat.name) },
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -248,7 +271,10 @@ fun GameLobbyScreen(
             // ── CTA
             Button(
                 onClick = {
-                    val cat = selectedCategory ?: catalog?.categories?.firstOrNull()?.id ?: return@Button
+                    val cat = selectedCategory
+                        ?: state.selectedCategoryId
+                        ?: catalog?.categories?.firstOrNull()?.id
+                        ?: return@Button
                     val selectedNumQuestions = numQuestions
                     val selectedDifficulty = difficulty.toInt()
                     when (gameType) {
