@@ -209,6 +209,7 @@ kotlin {
             api(libs.compose.foundation)
             api(libs.compose.animation)
             implementation(libs.compose.material3)
+            implementation(compose.materialIconsExtended)
             implementation(libs.compose.ui)
             implementation(libs.compose.components.resources)
             implementation(libs.compose.uiToolingPreview)
@@ -318,3 +319,13 @@ compose.desktop {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// Compose Resources
+// ---------------------------------------------------------------------------
+compose.resources {
+    publicResClass = true
+    packageOfResClass = "es.sebas1705.axiomnode.resources"
+    generateResClass = always
+}
+

@@ -1,5 +1,6 @@
 package es.sebas1705.axiomnode.presentation.profile
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,86 +14,93 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.LargeTopAppBar
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import es.sebas1705.axiomnode.domain.models.GameStats
 import es.sebas1705.axiomnode.domain.usecases.GamesUseCase
 import es.sebas1705.axiomnode.presentation.auth.AuthViewModel
+import es.sebas1705.axiomnode.presentation.navigation.Destination
+import es.sebas1705.axiomnode.presentation.navigation.Navigator
+import es.sebas1705.axiomnode.ui.components.AppScaffold
+import es.sebas1705.axiomnode.ui.components.ConfirmDialog
+import es.sebas1705.axiomnode.ui.components.SectionHeader
+import es.sebas1705.axiomnode.ui.components.StatTile
+import es.sebas1705.axiomnode.ui.components.WinRateBar
+import es.sebas1705.axiomnode.ui.layout.LocalWindowSize
+import es.sebas1705.axiomnode.ui.layout.WindowSize
 import org.koin.compose.koinInject
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     authViewModel: AuthViewModel,
+    navigator: Navigator,
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by authViewModel.state.collectAsStateWithLifecycle()
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val gamesUseCase: GamesUseCase = koinInject()
 
-    // Load stats
-    val statsState = androidx.compose.runtime.remember {
-        kotlinx.coroutines.flow.MutableStateFlow<GameStats?>(null)
+    var stats by remember { mutableStateOf<GameStats?>(null) }
+    var confirmLogout by remember { mutableStateOf(false) }
+    val windowSize = LocalWindowSize.current
+    val horizontalGutter = when (windowSize) {
+        WindowSize.COMPACT -> 16.dp
+        WindowSize.MEDIUM -> 20.dp
+        WindowSize.EXPANDED -> 24.dp
     }
-    val stats by statsState.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
-        gamesUseCase.getGameStats()
-            .onSuccess { statsState.value = it }
+        authViewModel.syncProfileOnEnter()
+        gamesUseCase.getGameStats().onSuccess { stats = it }
     }
 
-    Scaffold(
-        modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        topBar = {
-            LargeTopAppBar(
-                title = {
-                    Text(
-                        text = "Perfil",
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface,
-                ),
-                scrollBehavior = scrollBehavior,
-            )
-        },
-        containerColor = MaterialTheme.colorScheme.background,
-    ) { innerPadding ->
+    if (confirmLogout) {
+        ConfirmDialog(
+            title = "Cerrar sesión",
+            message = "¿Seguro que quieres cerrar sesión? Tus datos locales se mantendrán.",
+            confirmLabel = "Cerrar sesión",
+            onConfirm = {
+                confirmLogout = false
+                authViewModel.signOut()
+                onSignOut()
+            },
+            onDismiss = { confirmLogout = false },
+        )
+    }
+
+    AppScaffold(title = "Perfil", modifier = modifier) { _ ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = horizontalGutter)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Spacer(Modifier.height(8.dp))
 
-            // ── User info card ──────────────────────────────────────────
+            // ── User card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
@@ -101,12 +109,9 @@ fun ProfileScreen(
                 shape = RoundedCornerShape(20.dp),
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(24.dp),
+                    modifier = Modifier.fillMaxWidth().padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    // Avatar placeholder
                     Surface(
                         modifier = Modifier.size(72.dp),
                         shape = CircleShape,
@@ -118,18 +123,13 @@ fun ProfileScreen(
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             Text(
-                                text = state.user?.displayName
-                                    ?.take(2)
-                                    ?.uppercase()
-                                    ?: "?",
+                                text = state.user?.displayName?.take(2)?.uppercase() ?: "?",
                                 style = MaterialTheme.typography.headlineMedium,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                             )
                         }
                     }
-
                     Spacer(Modifier.height(16.dp))
-
                     Text(
                         text = state.user?.displayName ?: "Usuario",
                         style = MaterialTheme.typography.headlineSmall,
@@ -141,7 +141,7 @@ fun ProfileScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(8.dp))
                     Surface(
                         color = MaterialTheme.colorScheme.tertiaryContainer,
                         shape = RoundedCornerShape(8.dp),
@@ -156,8 +156,8 @@ fun ProfileScreen(
                 }
             }
 
-            // ── Game stats card ─────────────────────────────────────────
-            stats?.let { gameStats ->
+            // ── Resumen stats
+            stats?.takeIf { it.totalGames > 0 }?.let { gs ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
@@ -165,120 +165,44 @@ fun ProfileScreen(
                     ),
                     shape = RoundedCornerShape(16.dp),
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Text(
-                            text = "Estadísticas",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-
-                        if (gameStats.totalGames > 0) {
-                            // Win rate bar
-                            Column {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                ) {
-                                    Text(
-                                        text = "Tasa de victoria",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                    )
-                                    Text(
-                                        text = "${gameStats.winRatePercentage}%",
-                                        style = MaterialTheme.typography.labelLarge,
-                                        color = MaterialTheme.colorScheme.primary,
-                                    )
-                                }
-                                Spacer(Modifier.height(4.dp))
-                                LinearProgressIndicator(
-                                    progress = { gameStats.winRate },
-                                    modifier = Modifier.fillMaxWidth().height(8.dp),
-                                    color = MaterialTheme.colorScheme.primary,
-                                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                )
-                            }
-
-                            Spacer(Modifier.height(4.dp))
-
-                            // Stats grid
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceEvenly,
-                            ) {
-                                StatItem(value = "${gameStats.totalGames}", label = "Partidas")
-                                StatItem(value = "${gameStats.wins}", label = "Victorias")
-                                StatItem(value = "${gameStats.losses}", label = "Derrotas")
-                                StatItem(value = "${gameStats.draws}", label = "Empates")
-                            }
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceEvenly,
-                            ) {
-                                StatItem(
-                                    value = "${gameStats.averageScore}",
-                                    label = "Puntuación media",
-                                )
-                                StatItem(
-                                    value = formatPlayTime(gameStats.totalPlayTimeSeconds),
-                                    label = "Tiempo total",
-                                )
-                            }
-                        } else {
-                            Text(
-                                text = "Juega tu primera partida para ver estadísticas",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        WinRateBar(winRate = gs.winRate)
+                        Spacer(Modifier.height(12.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            StatTile("${gs.totalGames}", "Partidas", Modifier.weight(1f).height(80.dp))
+                            StatTile("${gs.wins}", "Victorias", Modifier.weight(1f).height(80.dp))
+                            StatTile("${gs.averageScore}", "Avg.", Modifier.weight(1f).height(80.dp))
                         }
                     }
                 }
             }
 
-            // ── App info card ───────────────────────────────────────────
+            // ── Acciones
+            SectionHeader(title = "Cuenta")
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                 ),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(14.dp),
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Text(
-                        text = "Información",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary,
+                Column {
+                    NavRow(
+                        title = "Ajustes",
+                        icon = Icons.Outlined.Settings,
+                        onClick = { navigator.push(Destination.Settings) },
                     )
-
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-
-                    ProfileInfoRow(label = "Versión", value = "1.0.0")
-                    ProfileInfoRow(label = "Plataforma", value = getPlatformName())
+                    NavRow(
+                        title = "Acerca de",
+                        icon = Icons.Outlined.Info,
+                        onClick = { navigator.push(Destination.About) },
+                    )
                 }
             }
 
-            // ── Sign out button ─────────────────────────────────────────
             OutlinedButton(
-                onClick = {
-                    authViewModel.signOut()
-                    onSignOut()
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
+                onClick = { confirmLogout = true },
+                modifier = Modifier.fillMaxWidth().height(48.dp),
                 shape = RoundedCornerShape(12.dp),
             ) {
                 Text(
@@ -287,55 +211,42 @@ fun ProfileScreen(
                     color = MaterialTheme.colorScheme.error,
                 )
             }
-
             Spacer(Modifier.height(24.dp))
         }
     }
 }
 
 @Composable
-private fun StatItem(value: String, label: String) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.padding(vertical = 4.dp),
-    ) {
-        Text(
-            text = value,
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
-@Composable
-private fun ProfileInfoRow(label: String, value: String) {
-    Column {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-    }
-}
-
-private fun formatPlayTime(totalSeconds: Int): String {
-    val hours = totalSeconds / 3600
-    val minutes = (totalSeconds % 3600) / 60
-    return if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"
+private fun NavRow(
+    title: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+) {
+    ListItem(
+        headlineContent = { Text(title) },
+        leadingContent = {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+            )
+        },
+        trailingContent = {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+            )
+        },
+        colors = ListItemDefaults.colors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+    )
 }
 
 /**
- * Returns a human-readable platform name.
+ * Returns a human-readable platform name. Implemented per platform.
  */
 expect fun getPlatformName(): String
 

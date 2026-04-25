@@ -13,15 +13,19 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -40,6 +44,9 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -48,6 +55,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import es.sebas1705.axiomnode.domain.models.Game
 import es.sebas1705.axiomnode.domain.models.GameOutcome
 import es.sebas1705.axiomnode.domain.models.GameType
+import es.sebas1705.axiomnode.ui.components.ConfirmDialog
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
+import es.sebas1705.axiomnode.ui.layout.LocalWindowSize
+import es.sebas1705.axiomnode.ui.layout.WindowSize
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,9 +70,26 @@ fun GamePlayScreen(
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    var confirmExit by remember { mutableStateOf(false) }
+    val windowSize = LocalWindowSize.current
+    val horizontalGutter = when (windowSize) {
+        WindowSize.COMPACT -> 16.dp
+        WindowSize.MEDIUM -> 20.dp
+        WindowSize.EXPANDED -> 24.dp
+    }
 
     LaunchedEffect(game.id) {
         viewModel.startGame(game)
+    }
+
+    if (confirmExit) {
+        ConfirmDialog(
+            title = "¿Salir de la partida?",
+            message = "Perderás el progreso actual.",
+            confirmLabel = "Salir",
+            onConfirm = { confirmExit = false; onExit() },
+            onDismiss = { confirmExit = false },
+        )
     }
 
     if (state.isFinished) {
@@ -73,6 +102,7 @@ fun GamePlayScreen(
     } else {
         Scaffold(
             modifier = modifier,
+            contentWindowInsets = WindowInsets.safeDrawing,
             topBar = {
                 TopAppBar(
                     title = {
@@ -102,6 +132,14 @@ fun GamePlayScreen(
                             )
                         }
                     },
+                    navigationIcon = {
+                        IconButton(onClick = { confirmExit = true }) {
+                            Icon(
+                                imageVector = Icons.Outlined.Close,
+                                contentDescription = "Salir",
+                            )
+                        }
+                    },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.surface,
                     ),
@@ -113,7 +151,7 @@ fun GamePlayScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = horizontalGutter),
             ) {
                 // ── Progress bar ────────────────────────────────────────
                 LinearProgressIndicator(
@@ -154,17 +192,18 @@ fun GamePlayScreen(
                                 .togetherWith(slideOutHorizontally { -it } + fadeOut())
                         },
                         label = "question-transition",
-                    ) { _ ->
+                    ) { targetIndex ->
+                        val q = state.game?.questions?.getOrNull(targetIndex) ?: question
                         when (state.game?.gameType) {
                             GameType.WORDPASS -> WordpassContent(
-                                question = question,
+                                question = q,
                                 typedAnswer = state.typedAnswer,
                                 isRevealed = state.isAnswerRevealed,
                                 onTypedAnswerChange = { viewModel.updateTypedAnswer(it) },
                                 onSubmit = { viewModel.submitTypedAnswer() },
                             )
                             else -> QuestionContent(
-                                question = question,
+                                question = q,
                                 selectedAnswer = state.selectedAnswer,
                                 isRevealed = state.isAnswerRevealed,
                                 onSelectAnswer = { viewModel.selectAnswer(it) },
@@ -433,118 +472,7 @@ private fun WordpassContent(
 // Game result screen (original marker)
 // ─────────────────────────────────────────────────────────────────────────────
 
-@Composable
-private fun GameResultScreen(
-    state: GamePlayState,
-    onPlayAgain: () -> Unit,
-    onExit: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val outcome = when {
-        state.scorePercentage >= 70 -> GameOutcome.WON
-        state.scorePercentage >= 40 -> GameOutcome.DRAW
-        else -> GameOutcome.LOST
-    }
-    val emoji = when (outcome) {
-        GameOutcome.WON -> "🏆"
-        GameOutcome.DRAW -> "🤔"
-        GameOutcome.LOST -> "💪"
-    }
-    val title = when (outcome) {
-        GameOutcome.WON -> "¡Excelente!"
-        GameOutcome.DRAW -> "¡Buen intento!"
-        GameOutcome.LOST -> "¡Sigue intentando!"
-    }
-
-    Surface(
-        modifier = modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(32.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(
-                text = emoji,
-                style = MaterialTheme.typography.displayLarge,
-            )
-            Spacer(Modifier.height(16.dp))
-            Text(
-                text = title,
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = state.game?.categoryName ?: "",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
-            Spacer(Modifier.height(32.dp))
-
-            // Score card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                ),
-                shape = RoundedCornerShape(20.dp),
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(
-                        text = "${state.scorePercentage}%",
-                        style = MaterialTheme.typography.displayMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    Spacer(Modifier.height(8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                    ) {
-                        ResultStat(label = "Correctas", value = "${state.correctCount}")
-                        ResultStat(label = "Incorrectas", value = "${state.wrongCount}")
-                        ResultStat(label = "Tiempo", value = formatTime(state.elapsedSeconds))
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(32.dp))
-
-            // Actions
-            Button(
-                onClick = onPlayAgain,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(14.dp),
-            ) {
-                Text("Jugar de Nuevo", style = MaterialTheme.typography.labelLarge)
-            }
-
-            Spacer(Modifier.height(8.dp))
-
-            OutlinedButton(
-                onClick = onExit,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(14.dp),
-            ) {
-                Text("Volver a Juegos", style = MaterialTheme.typography.labelLarge)
-            }
-        }
-    }
-}
+// GameResultScreen has been moved to GameResultScreen.kt
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper composables
@@ -569,21 +497,6 @@ private fun ScoreBadge(
     }
 }
 
-@Composable
-private fun ResultStat(label: String, value: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = value,
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
 
 private fun formatTime(seconds: Int): String {
     val min = seconds / 60
