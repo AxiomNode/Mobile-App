@@ -1,6 +1,9 @@
 package es.sebas1705.axiomnode.presentation.games
 
 import es.sebas1705.axiomnode.domain.models.GameType
+import es.sebas1705.axiomnode.domain.models.GameCatalog
+import es.sebas1705.axiomnode.domain.models.GameCategory
+import es.sebas1705.axiomnode.domain.models.GameLanguage
 import es.sebas1705.axiomnode.testsupport.FakeGamesUseCase
 import es.sebas1705.axiomnode.testsupport.MainDispatcherRule
 import es.sebas1705.axiomnode.testsupport.sampleGame
@@ -62,7 +65,7 @@ class GamesViewModelTest {
 
         val viewModel = GamesViewModel(useCase)
 
-        assertEquals("Error al cargar catalogo", viewModel.state.value.error)
+        assertEquals("Failed to load catalog", viewModel.state.value.error)
     }
 
     @Test
@@ -181,5 +184,56 @@ class GamesViewModelTest {
 
         assertEquals("cached-only", resolvedId)
         assertEquals(1, useCase.cachedGameByIdCalls)
+    }
+
+    @Test
+    fun `generateQuizGame forwards numQuestions and difficulty`() = runTest {
+        val viewModel = GamesViewModel(useCase)
+        useCase.generateGameResult = Result.success(sampleGame("quiz-custom", gameType = GameType.QUIZ))
+
+        viewModel.generateQuizGame(
+            categoryId = "math",
+            language = "es",
+            numQuestions = 20,
+            difficultyPercentage = 80,
+        )
+
+        assertEquals(20, useCase.lastGeneratedNumQuestions)
+        assertEquals(80, useCase.lastGeneratedDifficultyPercentage)
+        assertEquals(GameType.QUIZ, useCase.lastGeneratedGameType)
+    }
+
+    @Test
+    fun `loadCatalog falls back to first available language when current one is missing`() = runTest {
+        useCase.catalogResult = Result.success(
+            GameCatalog(
+                categories = listOf(GameCategory("math", "Matemáticas")),
+                languages = listOf(
+                    GameLanguage("en", "English"),
+                    GameLanguage("fr", "Français"),
+                ),
+            ),
+        )
+
+        val viewModel = GamesViewModel(useCase)
+
+        assertEquals("en", viewModel.state.value.selectedLanguage)
+    }
+
+    @Test
+    fun `loadCatalog clears selected category when catalog no longer contains it`() = runTest {
+        val viewModel = GamesViewModel(useCase)
+        viewModel.setSelectedCategory("history")
+
+        useCase.catalogResult = Result.success(
+            GameCatalog(
+                categories = listOf(GameCategory("math", "Matemáticas")),
+                languages = listOf(GameLanguage("es", "Español")),
+            ),
+        )
+
+        viewModel.loadCatalog()
+
+        assertNull(viewModel.state.value.selectedCategoryId)
     }
 }

@@ -17,13 +17,11 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -55,7 +53,7 @@ fun SettingsScreen(
     }
 
     AppScaffold(
-        title = "Ajustes",
+        title = "Settings",
         modifier = modifier,
         onBack = { navigator.pop() },
     ) { _ ->
@@ -64,7 +62,7 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState()),
         ) {
-            SectionHeader(title = "Apariencia")
+            SectionHeader(title = "Appearance")
             Card(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = horizontalGutter),
                 colors = CardDefaults.cardColors(
@@ -91,7 +89,7 @@ fun SettingsScreen(
                 }
             }
 
-            SectionHeader(title = "Partidas por defecto")
+            SectionHeader(title = "Default gameplay")
             Card(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = horizontalGutter),
                 colors = CardDefaults.cardColors(
@@ -100,24 +98,12 @@ fun SettingsScreen(
                 shape = RoundedCornerShape(14.dp),
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Idioma por defecto", style = MaterialTheme.typography.titleSmall)
-                    Spacer(Modifier.height(8.dp))
-                    val langs = listOf("es" to "Español", "en" to "English")
-                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                        langs.forEachIndexed { i, (code, name) ->
-                            SegmentedButton(
-                                selected = prefs.defaultLanguage == code,
-                                onClick = { viewModel.setLanguage(code) },
-                                shape = SegmentedButtonDefaults.itemShape(i, langs.size),
-                            ) { Text(name) }
-                        }
-                    }
-
+                    Text("Language: English only", style = MaterialTheme.typography.titleSmall)
                     Spacer(Modifier.height(16.dp))
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     Spacer(Modifier.height(16.dp))
 
-                    Text("Dificultad por defecto: ${prefs.defaultDifficulty}%",
+                    Text("Default difficulty: ${prefs.defaultDifficulty}%",
                         style = MaterialTheme.typography.titleSmall)
                     Slider(
                         value = prefs.defaultDifficulty.toFloat(),
@@ -127,7 +113,7 @@ fun SettingsScreen(
                     )
 
                     Spacer(Modifier.height(8.dp))
-                    Text("Preguntas por defecto: ${prefs.defaultNumQuestions}",
+                    Text("Default question count: ${prefs.defaultNumQuestions}",
                         style = MaterialTheme.typography.titleSmall)
                     Slider(
                         value = prefs.defaultNumQuestions.toFloat(),
@@ -138,7 +124,7 @@ fun SettingsScreen(
                 }
             }
 
-            SectionHeader(title = "Privacidad")
+            SectionHeader(title = "Privacy")
             Card(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = horizontalGutter),
                 colors = CardDefaults.cardColors(
@@ -147,8 +133,8 @@ fun SettingsScreen(
                 shape = RoundedCornerShape(14.dp),
             ) {
                 ListItem(
-                    headlineContent = { Text("Compartir analíticas anónimas") },
-                    supportingContent = { Text("Ayuda a mejorar la experiencia.") },
+                    headlineContent = { Text("Share anonymous analytics") },
+                    supportingContent = { Text("Helps improve the experience.") },
                     trailingContent = {
                         Switch(
                             checked = prefs.analyticsEnabled,
@@ -161,7 +147,7 @@ fun SettingsScreen(
                 )
             }
 
-            SectionHeader(title = "Contenido offline")
+            SectionHeader(title = "Offline content")
             Card(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = horizontalGutter),
                 colors = CardDefaults.cardColors(
@@ -174,11 +160,11 @@ fun SettingsScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Text(
-                        text = "Descarga mucha caché de forma repartida entre categorías e idiomas.",
+                        text = "Download a large cache distributed across categories.",
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     Text(
-                        text = "Objetivo: 400 objetos aprox. (200 quiz + 200 wordpass).",
+                        text = "Target: around 400 items (200 quiz + 200 wordpass).",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -196,10 +182,10 @@ fun SettingsScreen(
                                     modifier = Modifier.size(16.dp),
                                     strokeWidth = 2.dp,
                                 )
-                                Text("Descargando...")
+                                Text("Downloading...")
                             }
                         } else {
-                            Text("Descargar contenido repartido")
+                            Text("Download distributed content")
                         }
                     }
 
@@ -210,6 +196,26 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.primary,
                         )
                     }
+
+                    if (downloadState.isRunning || downloadState.downloaded > 0 || downloadState.attempted > 0) {
+                        val attemptsLabel = if (downloadState.maxAttempts > 0) {
+                            "${downloadState.attempted}/${downloadState.maxAttempts} attempts"
+                        } else {
+                            "${downloadState.attempted} attempts"
+                        }
+
+                        Text(
+                            text = "Progress: ${downloadState.downloaded}/${downloadState.target} saved · $attemptsLabel",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+
+                        LinearProgressIndicator(
+                            progress = { downloadState.progress },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+
                     downloadState.errorMessage?.let { msg ->
                         Text(
                             text = msg,
@@ -226,8 +232,8 @@ fun SettingsScreen(
 }
 
 private fun themeLabel(mode: ThemeMode): String = when (mode) {
-    ThemeMode.SYSTEM -> "Seguir sistema"
-    ThemeMode.LIGHT -> "Claro"
-    ThemeMode.DARK -> "Oscuro"
+    ThemeMode.SYSTEM -> "Follow system"
+    ThemeMode.LIGHT -> "Light"
+    ThemeMode.DARK -> "Dark"
 }
 

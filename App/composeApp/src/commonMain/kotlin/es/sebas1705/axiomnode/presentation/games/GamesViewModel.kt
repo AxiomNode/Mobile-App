@@ -18,7 +18,8 @@ data class GamesState(
     val error: String? = null,
     val contentAdvice: String? = null,
     val selectedCategoryId: String? = null,
-    val selectedLanguage: String = "es",
+    val selectedLanguage: String = "en",
+    val lastGeneratedGameId: String? = null,
 )
 
 class GamesViewModel(
@@ -36,15 +37,26 @@ class GamesViewModel(
             _state.value = _state.value.copy(isLoading = true, error = null)
             gamesUseCase.getGameCatalog()
                 .onSuccess { catalog ->
+                    val selectedLanguage =
+                        if (catalog.languages.any { it.code == _state.value.selectedLanguage }) {
+                            _state.value.selectedLanguage
+                        } else {
+                            catalog.languages.firstOrNull()?.code ?: _state.value.selectedLanguage
+                        }
+                    val selectedCategory =
+                        _state.value.selectedCategoryId
+                            ?.takeIf { categoryId -> catalog.categories.any { it.id == categoryId } }
                     _state.value = _state.value.copy(
                         isLoading = false,
                         catalog = catalog,
+                        selectedLanguage = selectedLanguage,
+                        selectedCategoryId = selectedCategory,
                     )
                 }
                 .onFailure { error ->
                     _state.value = _state.value.copy(
                         isLoading = false,
-                        error = error.message ?: "Error al cargar catalogo",
+                        error = error.message ?: "Failed to load catalog",
                     )
                 }
         }
@@ -62,13 +74,14 @@ class GamesViewModel(
                     _state.value = _state.value.copy(
                         isLoading = false,
                         games = games,
+                        lastGeneratedGameId = null,
                         contentAdvice = buildContentAdvice(games, requestedCount = count),
                     )
                 }
                 .onFailure { error ->
                     _state.value = _state.value.copy(
                         isLoading = false,
-                        error = error.message ?: "Error al cargar juegos",
+                        error = error.message ?: "Failed to load games",
                     )
                 }
         }
@@ -86,40 +99,62 @@ class GamesViewModel(
                 .onSuccess { cached ->
                     onResolved(cached)
                     if (cached == null) {
-                        _state.value = _state.value.copy(error = "No hay copia local de esta partida")
+                        _state.value = _state.value.copy(error = "No local copy is available for this session")
                     }
                 }
                 .onFailure { failure ->
                     _state.value = _state.value.copy(
-                        error = failure.message ?: "No se pudo cargar la partida",
+                        error = failure.message ?: "Failed to load session",
                     )
                     onResolved(null)
                 }
         }
     }
 
-    fun generateGame(categoryId: String, language: String) {
+    fun generateGame(
+        categoryId: String,
+        language: String,
+        numQuestions: Int = 10,
+        difficultyPercentage: Int = 50,
+    ) {
         generateGameByMode(
             categoryId = categoryId,
             language = language,
+            numQuestions = numQuestions,
+            difficultyPercentage = difficultyPercentage,
             gameType = GameType.QUIZ,
             letters = null,
         )
     }
 
-    fun generateQuizGame(categoryId: String, language: String) {
+    fun generateQuizGame(
+        categoryId: String,
+        language: String,
+        numQuestions: Int = 10,
+        difficultyPercentage: Int = 50,
+    ) {
         generateGameByMode(
             categoryId = categoryId,
             language = language,
+            numQuestions = numQuestions,
+            difficultyPercentage = difficultyPercentage,
             gameType = GameType.QUIZ,
             letters = null,
         )
     }
 
-    fun generateWordpassGame(categoryId: String, language: String, letters: String? = null) {
+    fun generateWordpassGame(
+        categoryId: String,
+        language: String,
+        letters: String? = null,
+        numQuestions: Int = 10,
+        difficultyPercentage: Int = 50,
+    ) {
         generateGameByMode(
             categoryId = categoryId,
             language = language,
+            numQuestions = numQuestions,
+            difficultyPercentage = difficultyPercentage,
             gameType = GameType.WORDPASS,
             letters = letters,
         )
@@ -128,6 +163,8 @@ class GamesViewModel(
     private fun generateGameByMode(
         categoryId: String,
         language: String,
+        numQuestions: Int,
+        difficultyPercentage: Int,
         gameType: GameType,
         letters: String?,
     ) {
@@ -136,8 +173,8 @@ class GamesViewModel(
             gamesUseCase.generateGame(
                 categoryId = categoryId,
                 language = language,
-                numQuestions = 10,
-                difficultyPercentage = 50,
+                numQuestions = numQuestions,
+                difficultyPercentage = difficultyPercentage,
                 gameType = gameType,
                 letters = letters,
             )
@@ -145,13 +182,14 @@ class GamesViewModel(
                     _state.value = _state.value.copy(
                         isLoading = false,
                         games = _state.value.games + game,
+                        lastGeneratedGameId = game.id,
                         contentAdvice = buildContentAdvice(_state.value.games + game),
                     )
                 }
                 .onFailure { error ->
                     _state.value = _state.value.copy(
                         isLoading = false,
-                        error = error.message ?: "Error al generar juego",
+                        error = error.message ?: "Failed to generate game",
                     )
                 }
         }
@@ -165,9 +203,36 @@ class GamesViewModel(
         _state.value = _state.value.copy(selectedLanguage = language)
     }
 
+    /**
+     * Silent prefetch when entering game flows: fetches fresh content online,
+     * while leaving current UI stable when offline.
+     */
+    fun warmUpPlayContent(count: Int = 4) {
+        viewModelScope.launch {
+            gamesUseCase.getRandomGames(
+                count = count,
+                language = _state.value.selectedLanguage,
+                categoryId = _state.value.selectedCategoryId,
+            ).onSuccess { incoming ->
+                if (incoming.isNotEmpty()) {
+                    val merged = (incoming + _state.value.games)
+                        .distinctBy { it.id }
+                    _state.value = _state.value.copy(
+                        games = merged,
+                        contentAdvice = buildContentAdvice(merged),
+                    )
+                }
+            }
+        }
+    }
+
+    fun consumeGeneratedNavigation() {
+        _state.value = _state.value.copy(lastGeneratedGameId = null)
+    }
+
     private fun buildContentAdvice(games: List<Game>, requestedCount: Int = 0): String? {
         if (games.isEmpty()) {
-            return "Sin contenido local suficiente. Conéctate a internet para descargar más partidas."
+            return "Not enough local content. Connect to the internet to download more sessions."
         }
 
         val totalQuestions = games.sumOf { it.questions.size }
@@ -187,15 +252,14 @@ class GamesViewModel(
         }
 
         if (requestedCount > 0 && games.size < requestedCount) {
-            return "Se encontraron menos partidas de las pedidas en caché. Conéctate para bajar más contenido."
+            return "Fewer cached sessions were found than requested. Connect to download more content."
         }
         if (totalQuestions < 12) {
-            return "Contenido local limitado. Conéctate para descargar más preguntas o palabras."
+            return "Local content is limited. Connect to download more questions or words."
         }
         if (repetitionRatio >= 0.35f) {
-            return "Se detecta mucha repetición en caché. Conviene conectarse para refrescar contenido."
+            return "A high amount of cached repetition was detected. Connect to refresh the content."
         }
         return null
     }
 }
-

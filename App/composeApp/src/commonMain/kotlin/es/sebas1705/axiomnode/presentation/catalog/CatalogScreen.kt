@@ -64,37 +64,10 @@ fun CatalogScreen(
     LaunchedEffect(Unit) { viewModel.loadRandomGames() }
 
     AppScaffold(
-        title = "Catálogo",
+        title = "Catalog",
         modifier = modifier,
     ) { _ ->
         Column(modifier = Modifier.fillMaxSize()) {
-
-            state.catalog?.let { catalog ->
-                if (catalog.languages.isNotEmpty()) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState())
-                            .padding(horizontal = horizontalGutter, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        catalog.languages.forEach { language ->
-                            FilterChip(
-                                selected = state.selectedLanguage == language.code,
-                                onClick = {
-                                    viewModel.setSelectedLanguage(language.code)
-                                    viewModel.loadRandomGames()
-                                },
-                                label = { Text(language.name) },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                    selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                                ),
-                            )
-                        }
-                    }
-                }
-            }
 
             // Filtros (categorías)
             state.catalog?.let { catalog ->
@@ -112,7 +85,7 @@ fun CatalogScreen(
                                 viewModel.setSelectedCategory(null)
                                 viewModel.loadRandomGames()
                             },
-                            label = { Text("Todas") },
+                            label = { Text("All") },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
                                 selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -151,10 +124,10 @@ fun CatalogScreen(
 
             when {
                 state.isLoading && state.games.isEmpty() ->
-                    LoadingState(message = "Cargando partidas…")
+                    LoadingState(message = "Loading sessions...")
                 state.games.isEmpty() -> EmptyState(
-                    title = "Sin partidas",
-                    description = "Pulsa “+” para generar una nueva.",
+                    title = "No sessions yet",
+                    description = "Tap + to generate a new one.",
                     icon = Icons.Outlined.SportsEsports,
                 )
                 else -> {
@@ -197,7 +170,7 @@ fun CatalogScreen(
                         contentDescription = null,
                     )
                 },
-                text = { Text("Más partidas") },
+                text = { Text("More games") },
             )
         }
     }

@@ -13,12 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
@@ -38,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import es.sebas1705.axiomnode.data.preferences.PreferencesRepository
 import es.sebas1705.axiomnode.data.network.ConnectivityMonitor
 import es.sebas1705.axiomnode.domain.models.GameType
 import es.sebas1705.axiomnode.presentation.games.GamesViewModel
@@ -66,14 +62,23 @@ fun GameLobbyScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val connectivityMonitor: ConnectivityMonitor = koinInject()
+    val preferencesRepository: PreferencesRepository = koinInject()
+    val prefs by preferencesRepository.preferences.collectAsStateWithLifecycle()
     val isOnline by connectivityMonitor.isOnline.collectAsStateWithLifecycle()
+    val questionOptions = remember { listOf(5, 10, 15, 20) }
+    val preferredQuestions = remember(prefs.defaultNumQuestions) {
+        nearestQuestionOption(prefs.defaultNumQuestions, questionOptions)
+    }
 
     var selectedCategory by rememberSaveable { mutableStateOf<String?>(null) }
-    var language by rememberSaveable { mutableStateOf("es") }
-    var difficulty by rememberSaveable { mutableStateOf(50f) }
-    var numQuestions by rememberSaveable { mutableStateOf(10) }
+    val language = "en"
+    var difficulty by rememberSaveable(gameType, prefs.defaultDifficulty) {
+        mutableStateOf(prefs.defaultDifficulty.toFloat())
+    }
+    var numQuestions by rememberSaveable(gameType, preferredQuestions) {
+        mutableStateOf(preferredQuestions)
+    }
     var letters by rememberSaveable { mutableStateOf("") }
-    var languageMenuOpen by remember { mutableStateOf(false) }
     var warmUpRequested by rememberSaveable(gameType) { mutableStateOf(false) }
     val windowSize = LocalWindowSize.current
     val horizontalGutter = when (windowSize) {
@@ -83,8 +88,8 @@ fun GameLobbyScreen(
     }
 
     val title = when (gameType) {
-        GameType.QUIZ -> "Configurar Quiz"
-        GameType.WORDPASS -> "Configurar Wordpass"
+        GameType.QUIZ -> "Configure Quiz"
+        GameType.WORDPASS -> "Configure Wordpass"
     }
 
     // Cuando se genera un nuevo juego, ir a Play.
@@ -104,13 +109,6 @@ fun GameLobbyScreen(
     }
 
     // Mantiene la logica previa: conservar filtros seleccionados cuando ya existian.
-    LaunchedEffect(state.selectedLanguage, state.catalog) {
-        val available = state.catalog?.languages.orEmpty()
-        if (available.any { it.code == state.selectedLanguage }) {
-            language = state.selectedLanguage
-        }
-    }
-
     // Inicializa categoria para generar usando la seleccion previa o la primera disponible.
     LaunchedEffect(state.catalog, state.selectedCategoryId) {
         val categories = state.catalog?.categories.orEmpty()
@@ -145,25 +143,25 @@ fun GameLobbyScreen(
             Spacer(Modifier.height(8.dp))
 
             // ── Categorías
-            SectionHeader(title = "Categoría")
+            SectionHeader(title = "Category")
             val catalog = state.catalog
             when {
                 state.isLoading && catalog == null -> {
                     LoadingState(
-                        message = "Cargando categorías…",
+                        message = "Loading categories...",
                         modifier = Modifier.height(120.dp),
                     )
                 }
                 catalog == null && state.error != null -> {
                     ErrorState(
-                        message = state.error ?: "No se pudo cargar el catálogo",
+                        message = state.error ?: "Failed to load the catalog",
                         modifier = Modifier.height(180.dp),
                         onRetry = { viewModel.loadCatalog() },
                     )
                 }
                 catalog == null -> {
                     LoadingState(
-                        message = "Preparando catálogo…",
+                        message = "Preparing catalog...",
                         modifier = Modifier.height(120.dp),
                     )
                 }
@@ -192,56 +190,22 @@ fun GameLobbyScreen(
                 }
             }
 
-            // ── Idioma
-            SectionHeader(title = "Idioma")
-            val languages = catalog?.languages.orEmpty()
-            ExposedDropdownMenuBox(
-                expanded = languageMenuOpen,
-                onExpandedChange = { languageMenuOpen = it },
-            ) {
-                OutlinedTextField(
-                    value = languages.firstOrNull { it.code == language }?.name ?: language.uppercase(),
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Idioma") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = languageMenuOpen) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true),
-                    shape = RoundedCornerShape(12.dp),
-                )
-                DropdownMenu(
-                    expanded = languageMenuOpen,
-                    onDismissRequest = { languageMenuOpen = false },
-                ) {
-                    languages.forEach { lang ->
-                        DropdownMenuItem(
-                            text = { Text(lang.name) },
-                            onClick = {
-                                language = lang.code
-                                viewModel.setSelectedLanguage(lang.code)
-                                languageMenuOpen = false
-                            },
-                        )
-                    }
-                }
-            }
+            // English-only content: language selection removed from the lobby.
 
             // ── Nº de preguntas
-            SectionHeader(title = "Número de preguntas")
-            val options = listOf(5, 10, 15, 20)
+            SectionHeader(title = "Question count")
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                options.forEachIndexed { index, value ->
+                questionOptions.forEachIndexed { index, value ->
                     SegmentedButton(
                         selected = numQuestions == value,
                         onClick = { numQuestions = value },
-                        shape = SegmentedButtonDefaults.itemShape(index, options.size),
+                        shape = SegmentedButtonDefaults.itemShape(index, questionOptions.size),
                     ) { Text("$value") }
                 }
             }
 
             // ── Dificultad
-            SectionHeader(title = "Dificultad: ${difficulty.toInt()}%")
+            SectionHeader(title = "Difficulty: ${difficulty.toInt()}%")
             Slider(
                 value = difficulty,
                 onValueChange = { difficulty = it },
@@ -252,11 +216,11 @@ fun GameLobbyScreen(
 
             // ── Letras (sólo Wordpass)
             if (gameType == GameType.WORDPASS) {
-                SectionHeader(title = "Letras (opcional)")
+                SectionHeader(title = "Letters (optional)")
                 OutlinedTextField(
                     value = letters,
                     onValueChange = { letters = it.uppercase() },
-                    placeholder = { Text("Ej. ABCDE") },
+                    placeholder = { Text("E.g. ABCDE") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
@@ -267,7 +231,7 @@ fun GameLobbyScreen(
 
             if (!isOnline) {
                 InlineInfoCard(
-                    message = "Modo offline: usarás contenido jugado/cacheado hasta recuperar conexión.",
+                    message = "Offline mode: cached content will be used until the connection returns.",
                 )
             }
 
@@ -302,11 +266,15 @@ fun GameLobbyScreen(
                     .height(52.dp),
                 shape = RoundedCornerShape(14.dp),
             ) {
-                Text(if (state.isLoading) "Generando…" else "Empezar partida",
+                Text(if (state.isLoading) "Generating..." else "Start game",
                     style = MaterialTheme.typography.labelLarge)
             }
 
             Spacer(Modifier.height(24.dp))
         }
     }
+}
+
+private fun nearestQuestionOption(value: Int, options: List<Int>): Int {
+    return options.minByOrNull { option -> kotlin.math.abs(option - value) } ?: options.firstOrNull() ?: 10
 }

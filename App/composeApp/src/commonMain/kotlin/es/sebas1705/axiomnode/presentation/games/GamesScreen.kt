@@ -56,7 +56,7 @@ import es.sebas1705.axiomnode.ui.layout.WindowSize
 fun GamesScreen(
     viewModel: GamesViewModel,
     onGameSelected: (gameId: String) -> Unit,
-    screenTitle: String = "Juegos",
+    screenTitle: String = "Games",
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -166,31 +166,6 @@ fun GamesScreen(
 
             // ── Category filter chips ────────────────────────────────
             state.catalog?.let { catalog ->
-                if (catalog.languages.isNotEmpty()) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState())
-                            .padding(horizontal = horizontalGutter, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        catalog.languages.forEach { language ->
-                            FilterChip(
-                                selected = state.selectedLanguage == language.code,
-                                onClick = {
-                                    viewModel.setSelectedLanguage(language.code)
-                                    viewModel.loadRandomGames()
-                                },
-                                label = { Text(language.name) },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                    selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                                ),
-                            )
-                        }
-                    }
-                }
-
                 if (catalog.categories.isNotEmpty()) {
                     Row(
                         modifier = Modifier
@@ -205,7 +180,7 @@ fun GamesScreen(
                                 viewModel.setSelectedCategory(null)
                                 viewModel.loadRandomGames()
                             },
-                            label = { Text("Todas") },
+                            label = { Text("All") },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
                                 selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -239,27 +214,27 @@ fun GamesScreen(
                         onClick = {
                             viewModel.generateQuizGame(
                                 categoryId = selectedCategory,
-                                language = state.selectedLanguage,
+                                    language = "en",
                             )
                         },
                         modifier = Modifier.weight(1f),
                         enabled = !state.isLoading,
                         shape = RoundedCornerShape(12.dp),
                     ) {
-                        Text("Generar Quiz")
+                        Text("Generate Quiz")
                     }
                     OutlinedButton(
                         onClick = {
                             viewModel.generateWordpassGame(
                                 categoryId = selectedCategory,
-                                language = state.selectedLanguage,
+                                    language = "en",
                             )
                         },
                         modifier = Modifier.weight(1f),
                         enabled = !state.isLoading,
                         shape = RoundedCornerShape(12.dp),
                     ) {
-                        Text("Generar Wordpass")
+                        Text("Generate Wordpass")
                     }
                 }
             }
@@ -303,7 +278,7 @@ fun GamesScreen(
                 enabled = !state.isLoading,
             ) {
                 Text(
-                    text = if (state.isLoading) "Cargando…" else "Cargar Más Juegos",
+                    text = if (state.isLoading) "Loading..." else "Load more games",
                     style = MaterialTheme.typography.labelLarge,
                 )
             }
@@ -374,7 +349,7 @@ private fun GameCard(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 DetailChip(
-                    label = "${game.questions.size} preguntas",
+                    label = "${game.questions.size} questions",
                     containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                     contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
