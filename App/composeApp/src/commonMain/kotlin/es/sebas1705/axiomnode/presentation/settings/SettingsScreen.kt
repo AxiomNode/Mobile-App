@@ -7,12 +7,15 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -43,6 +46,7 @@ fun SettingsScreen(
     modifier: Modifier = Modifier,
 ) {
     val prefs by viewModel.state.collectAsStateWithLifecycle()
+    val downloadState by viewModel.downloadState.collectAsStateWithLifecycle()
     val windowSize = LocalWindowSize.current
     val horizontalGutter = when (windowSize) {
         WindowSize.COMPACT -> 16.dp
@@ -155,6 +159,65 @@ fun SettingsScreen(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                     ),
                 )
+            }
+
+            SectionHeader(title = "Contenido offline")
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = horizontalGutter),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                ),
+                shape = RoundedCornerShape(14.dp),
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(
+                        text = "Descarga mucha caché de forma repartida entre categorías e idiomas.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        text = "Objetivo: 400 objetos aprox. (200 quiz + 200 wordpass).",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+
+                    Button(
+                        onClick = { viewModel.downloadMassiveDistributedContent() },
+                        enabled = !downloadState.isRunning,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        if (downloadState.isRunning) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                )
+                                Text("Descargando...")
+                            }
+                        } else {
+                            Text("Descargar contenido repartido")
+                        }
+                    }
+
+                    downloadState.statusMessage?.let { msg ->
+                        Text(
+                            text = msg,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                    downloadState.errorMessage?.let { msg ->
+                        Text(
+                            text = msg,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
             }
 
             Spacer(Modifier.height(24.dp))

@@ -79,6 +79,8 @@ import org.koin.dsl.KoinAppDeclaration
 
 private enum class RootScreen { LOADING, AUTH, MAIN }
 
+private const val FIRST_SYNC_RANDOM_DOWNLOAD_COUNT = 200
+
 // ─────────────────────────────────────────────────────────────────────────────
 // App entry-point
 // ─────────────────────────────────────────────────────────────────────────────
@@ -133,8 +135,15 @@ private fun AppRoot(modifier: Modifier = Modifier) {
                 coroutineScope {
                     val profileSync = async { authUseCase.getCurrentUser() }
                     val catalogSync = async { gamesUseCase.getGameCatalog() }
+                    val firstContentSync = async {
+                        gamesUseCase.getRandomGames(
+                            count = FIRST_SYNC_RANDOM_DOWNLOAD_COUNT,
+                            language = "es",
+                        )
+                    }
                     profileSync.await()
                     catalogSync.await()
+                    firstContentSync.await()
                 }
             }
         }

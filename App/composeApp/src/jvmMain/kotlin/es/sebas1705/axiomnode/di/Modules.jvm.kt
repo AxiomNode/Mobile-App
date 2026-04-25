@@ -11,6 +11,10 @@ import es.sebas1705.axiomnode.domain.usecases.GamesUseCase
 import es.sebas1705.axiomnode.presentation.auth.AuthViewModel
 import es.sebas1705.axiomnode.presentation.gameplay.GamePlayViewModel
 import es.sebas1705.axiomnode.presentation.games.GamesViewModel
+import es.sebas1705.axiomnode.presentation.history.HistoryViewModel
+import es.sebas1705.axiomnode.presentation.home.HomeViewModel
+import es.sebas1705.axiomnode.presentation.settings.SettingsViewModel
+import es.sebas1705.axiomnode.presentation.stats.StatsViewModel
 import org.koin.core.module.Module
 import org.koin.dsl.module
 import java.io.File
@@ -33,4 +37,8 @@ actual val platformModule: Module
         factory { AuthViewModel(get<AuthUseCase>(), get<GoogleSignInClient>()) }
         factory { GamesViewModel(get<GamesUseCase>()) }
         factory { GamePlayViewModel(get<GamesUseCase>()) }
+        factory { HomeViewModel(get<GamesUseCase>()) }
+        factory { HistoryViewModel(get<GamesUseCase>()) }
+        factory { StatsViewModel(get<GamesUseCase>()) }
+        factory { SettingsViewModel(get(), get<GamesUseCase>()) }
     }
