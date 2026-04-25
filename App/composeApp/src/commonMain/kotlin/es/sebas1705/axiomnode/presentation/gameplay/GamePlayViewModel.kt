@@ -89,7 +89,7 @@ class GamePlayViewModel(
         val current = _state.value
         if (current.isAnswerRevealed || current.isFinished) return
         val correctAnswer = current.currentQuestion?.correctAnswer ?: return
-        val isCorrect = current.typedAnswer.trim().equals(correctAnswer.trim(), ignoreCase = true)
+        val isCorrect = isWordpassAnswerMatch(current.typedAnswer, correctAnswer)
         _state.value = current.copy(
             selectedAnswer = current.typedAnswer.trim(),
             isAnswerRevealed = true,

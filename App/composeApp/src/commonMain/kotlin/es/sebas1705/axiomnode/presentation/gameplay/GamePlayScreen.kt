@@ -434,7 +434,7 @@ private fun WordpassContent(
         // Feedback after reveal
         if (isRevealed) {
             Spacer(Modifier.height(12.dp))
-            val isCorrect = typedAnswer.trim().equals(question.correctAnswer.trim(), ignoreCase = true)
+            val isCorrect = isWordpassAnswerMatch(typedAnswer, question.correctAnswer)
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(

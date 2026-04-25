@@ -158,6 +158,26 @@ class GamePlayViewModelTest {
     }
 
     @Test
+    fun `submitTypedAnswer ignores case accents and punctuation in wordpass`() {
+        val viewModel = GamePlayViewModel(useCase)
+        val wordpassQuestion = Question(
+            id = "w1",
+            text = "Define la palabra",
+            options = emptyList(),
+            correctAnswer = "dígales",
+        )
+        viewModel.startGame(sampleGame(questions = listOf(wordpassQuestion)))
+
+        viewModel.updateTypedAnswer("  DIGALES!!!  ")
+        viewModel.submitTypedAnswer()
+
+        val state = viewModel.state.value
+        assertTrue(state.isAnswerRevealed)
+        assertEquals(1, state.correctCount)
+        assertEquals(0, state.wrongCount)
+    }
+
+    @Test
     fun `answering all correctly finishes with WON outcome and records result`() = runTest {
         val viewModel = GamePlayViewModel(useCase)
         viewModel.startGame(sampleGame(questions = twoQuestions))
