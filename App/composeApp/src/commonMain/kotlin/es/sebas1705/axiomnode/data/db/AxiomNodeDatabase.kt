@@ -4,19 +4,27 @@ import androidx.room.ConstructedBy
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.RoomDatabaseConstructor
-import es.sebas1705.axiomnode.data.entities.GameEntity
+import es.sebas1705.axiomnode.data.entities.CatalogCategoryEntity
+import es.sebas1705.axiomnode.data.entities.CatalogLanguageEntity
+import es.sebas1705.axiomnode.data.entities.CatalogSyncStateEntity
 import es.sebas1705.axiomnode.data.entities.PlayedGameEntity
 import es.sebas1705.axiomnode.data.entities.GameResultEntity
+import es.sebas1705.axiomnode.data.entities.QuizGameEntity
 import es.sebas1705.axiomnode.data.entities.UserProfileEntity
+import es.sebas1705.axiomnode.data.entities.WordpassGameEntity
 
 @Database(
     entities = [
-        GameEntity::class,
+        QuizGameEntity::class,
+        WordpassGameEntity::class,
         GameResultEntity::class,
         PlayedGameEntity::class,
         UserProfileEntity::class,
+        CatalogCategoryEntity::class,
+        CatalogLanguageEntity::class,
+        CatalogSyncStateEntity::class,
     ],
-    version = 2,
+    version = 6,
     exportSchema = false,
 )
 @ConstructedBy(AxiomNodeDatabaseConstructor::class)
@@ -25,6 +33,7 @@ abstract class AxiomNodeDatabase : RoomDatabase() {
     abstract fun gameResultDao(): GameResultDao
     abstract fun playedGameDao(): PlayedGameDao
     abstract fun userProfileDao(): UserProfileDao
+    abstract fun catalogDao(): CatalogDao
 }
 
 @Suppress("KotlinNoActualForExpect")

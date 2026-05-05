@@ -1,15 +1,18 @@
 package es.sebas1705.axiomnode.data.entities
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import es.sebas1705.axiomnode.domain.models.User
 import es.sebas1705.axiomnode.domain.models.UserRole
 import kotlin.time.Clock
 
-@Entity(tableName = "user_profiles")
+@Entity(
+    tableName = "user_profiles",
+    indices = [Index(value = ["lastUpdatedAt"])],
+)
 data class UserProfileEntity(
     @PrimaryKey
-    val id: Int = 1,
     val firebaseUid: String,
     val email: String,
     val displayName: String?,

@@ -1,9 +1,12 @@
 package es.sebas1705.axiomnode.data.repositories
 
 import es.sebas1705.axiomnode.config.AppConfig
+import es.sebas1705.axiomnode.data.db.CatalogDao
 import es.sebas1705.axiomnode.data.db.GameDao
 import es.sebas1705.axiomnode.data.db.GameResultDao
 import es.sebas1705.axiomnode.data.db.PlayedGameDao
+import es.sebas1705.axiomnode.data.entities.CatalogCategoryEntity
+import es.sebas1705.axiomnode.data.entities.CatalogLanguageEntity
 import es.sebas1705.axiomnode.data.entities.GameEntity
 import es.sebas1705.axiomnode.data.entities.PlayedGameEntity
 import es.sebas1705.axiomnode.data.entities.GameResultEntity
@@ -23,6 +26,8 @@ import es.sebas1705.axiomnode.domain.usecases.GamesUseCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
+import kotlin.time.Clock
+import kotlin.math.abs
 
 /**
  * Implementacion del caso de uso de juegos con cache local.
@@ -33,6 +38,7 @@ class GamesRepository(
     private val gameDao: GameDao,
     private val gameResultDao: GameResultDao,
     private val playedGameDao: PlayedGameDao,
+    private val catalogDao: CatalogDao,
     private val syncEngine: GameResultSyncEngine,
     private val config: AppConfig,
 ) : GamesUseCase {
@@ -46,11 +52,40 @@ class GamesRepository(
     /** Expose sync engine state for UI observation. */
     val syncState get() = syncEngine.state
 
+    private companion object {
+        const val CATALOG_SYNC_MIN_INTERVAL_MS = 15 * 60 * 1000L
+    }
+
     override suspend fun getGameCatalog(): Result<GameCatalog> {
         if (config.isDevAuth) {
             return Result.success(devCatalog)
         }
-        return httpClient.getGameCatalog()
+
+        return withContext(Dispatchers.IO) {
+            val local = readCatalogFromLocal()
+            val syncState = catalogDao.getSyncState()
+            val now = Clock.System.now().toEpochMilliseconds()
+            val shouldRefresh = local == null || syncState == null || (now - syncState.lastSyncAt) >= CATALOG_SYNC_MIN_INTERVAL_MS
+
+            if (!shouldRefresh && local != null) {
+                return@withContext Result.success(local)
+            }
+
+            val remote = httpClient.getGameCatalog()
+            if (remote.isSuccess) {
+                val remoteCatalog = remote.getOrNull()
+                if (remoteCatalog != null) {
+                    persistCatalog(remoteCatalog, now)
+                    return@withContext Result.success(remoteCatalog)
+                }
+            }
+
+            if (local != null) {
+                Result.success(local)
+            } else {
+                remote
+            }
+        }
     }
 
     override suspend fun generateGame(
@@ -91,7 +126,13 @@ class GamesRepository(
             gameType = gameType,
             numQuestions = numQuestions,
         )
-        if (cached != null) Result.success(cached) else remote
+        if (cached != null) {
+            Result.success(cached)
+        } else {
+            Result.failure(
+                Exception("No hay contenido local suficiente para jugar sin conexión. Conéctate para descargar nuevas partidas."),
+            )
+        }
     }
 
     override suspend fun getRandomGames(
@@ -113,24 +154,33 @@ class GamesRepository(
         }
 
         val remote = httpClient.getRandomGames(count, language, categoryId)
-            .onSuccess { games ->
-                gameDao.insertGames(games.map { GameEntity.fromDomain(it) })
+        if (remote.isSuccess) {
+            val remoteGames = remote.getOrNull().orEmpty()
+            if (remoteGames.isNotEmpty()) {
+                gameDao.insertGames(remoteGames.map { GameEntity.fromDomain(it) })
+                return@withContext Result.success(remoteGames)
             }
-
-        if (remote.isSuccess) return@withContext remote
+        }
 
         val localGames = getOfflinePlayableGames(
             count = count,
             language = language,
             categoryId = categoryId,
         )
-        if (localGames.isNotEmpty()) Result.success(localGames) else remote
+        if (localGames.isNotEmpty()) {
+            // Keep cache tables warm even when serving offline fallback content.
+            gameDao.insertGames(localGames.map { GameEntity.fromDomain(it) })
+            Result.success(localGames)
+        } else {
+            Result.failure(
+                Exception("No hay contenido local suficiente para jugar sin conexión. Conéctate para descargar nuevas partidas."),
+            )
+        }
     }
 
     override suspend fun getCachedGameById(gameId: String): Result<Game?> = withContext(Dispatchers.IO) {
         try {
             val fromCache = gameDao.getGameById(gameId)?.toDomain()
-                ?: playedGameDao.getLatestPlayedGameByGameId(gameId)?.toDomainGame()
             Result.success(fromCache)
         } catch (e: Exception) {
             Result.failure(e)
@@ -139,8 +189,8 @@ class GamesRepository(
 
     override suspend fun getPlayedGamesHistory(limit: Int): Result<List<Game>> = withContext(Dispatchers.IO) {
         try {
-            val history = playedGameDao.getRecentPlayedGames(limit)
-                .map { it.toDomainGame() }
+            val playedEntries = playedGameDao.getRecentPlayedGames(limit)
+            val history = resolveGamesFromPlayedEntries(playedEntries)
                 .distinctBy { it.id }
             Result.success(history)
         } catch (e: Exception) {
@@ -153,13 +203,11 @@ class GamesRepository(
             val entity = GameResultEntity.fromDomain(result)
             gameResultDao.insertResult(entity)
 
-            val game = gameDao.getGameById(result.gameId)?.toDomain()
-                ?: playedGameDao.getLatestPlayedGameByGameId(result.gameId)?.toDomainGame()
-
-            if (game != null) {
+            val gameExists = gameDao.getGameById(result.gameId) != null
+            if (gameExists) {
                 playedGameDao.insertPlayedGame(
                     PlayedGameEntity.from(
-                        game = game,
+                        gameId = result.gameId,
                         playedAt = entity.timestamp,
                         outcome = result.outcome,
                         score = result.score,
@@ -221,19 +269,36 @@ class GamesRepository(
         language: String,
         categoryId: String?,
     ): List<Game> {
-        val cached = gameDao.getRecentGames(limit = count * 4)
-            .map { it.toDomain() }
-        val played = playedGameDao.getRecentPlayedGames(limit = count * 4)
-            .map { it.toDomainGame() }
+        val offlinePool = loadOfflinePool(limit = count * 12)
 
-        return (cached + played)
-            .asSequence()
-            .filter { game ->
-                game.language == language && (categoryId == null || game.categoryId == categoryId)
+        val selectedPool = selectBestOfflinePool(
+            pool = offlinePool,
+            language = language,
+            categoryId = categoryId,
+        )
+
+        if (selectedPool.isEmpty()) {
+            return emptyList()
+        }
+
+        val quizGames = selectedPool.filter { it.gameType == GameType.QUIZ }.shuffled().toMutableList()
+        val wordpassGames = selectedPool.filter { it.gameType == GameType.WORDPASS }.shuffled().toMutableList()
+        val mixed = mutableListOf<Game>()
+
+        // Interleave types to avoid same-mode streaks when offline content exists for both modes.
+        while (quizGames.isNotEmpty() || wordpassGames.isNotEmpty()) {
+            if (quizGames.isNotEmpty()) {
+                mixed.add(quizGames.removeAt(0))
             }
-            .distinctBy { it.id }
-            .take(count)
-            .toList()
+            if (wordpassGames.isNotEmpty()) {
+                mixed.add(wordpassGames.removeAt(0))
+            }
+            if (mixed.size >= count) {
+                break
+            }
+        }
+
+        return mixed.take(count)
     }
 
     private suspend fun findCachedGameForGeneration(
@@ -242,17 +307,30 @@ class GamesRepository(
         gameType: GameType,
         numQuestions: Int,
     ): Game? {
-        val cached = gameDao.getRecentGames(limit = 250)
-            .map { it.toDomain() }
-        val played = playedGameDao.getRecentPlayedGames(limit = 250)
-            .map { it.toDomainGame() }
+        val pool = loadOfflinePool(limit = 300)
 
-        val candidate = (cached + played)
-            .firstOrNull { game ->
+        val candidatePool = sequenceOf(
+            pool.filter { game ->
                 game.gameType == gameType &&
                     game.categoryId == categoryId &&
-                    game.language == language &&
-                    game.questions.isNotEmpty()
+                    game.language == language
+            },
+            pool.filter { game ->
+                game.gameType == gameType &&
+                    game.language == language
+            },
+            pool.filter { game ->
+                game.gameType == gameType &&
+                    game.categoryId == categoryId
+            },
+            pool.filter { game -> game.gameType == gameType },
+        ).firstOrNull { it.isNotEmpty() }
+            ?: return null
+
+        val candidate = candidatePool
+            .minByOrNull { game ->
+                val missingPenalty = if (game.questions.size < numQuestions) 1_000 else 0
+                missingPenalty + abs(game.questions.size - numQuestions)
             }
             ?: return null
 
@@ -261,6 +339,97 @@ class GamesRepository(
         } else {
             candidate.copy(questions = candidate.questions.take(numQuestions))
         }
+    }
+
+    private suspend fun loadOfflinePool(limit: Int): List<Game> {
+        val cached = gameDao.getRecentGames(limit = limit)
+            .map { it.toDomain() }
+        val playedEntries = playedGameDao.getRecentPlayedGames(limit = limit)
+        val played = resolveGamesFromPlayedEntries(playedEntries)
+
+        return (played + cached)
+            .asSequence()
+            .filter { it.questions.isNotEmpty() }
+            .distinctBy { it.id }
+            .toList()
+    }
+
+    private fun selectBestOfflinePool(
+        pool: List<Game>,
+        language: String,
+        categoryId: String?,
+    ): List<Game> {
+        val exact = pool.filter { game ->
+            game.language == language && (categoryId == null || game.categoryId == categoryId)
+        }
+        if (exact.isNotEmpty()) return exact
+
+        val byLanguage = pool.filter { it.language == language }
+        if (byLanguage.isNotEmpty()) return byLanguage
+
+        if (categoryId != null) {
+            val byCategory = pool.filter { it.categoryId == categoryId }
+            if (byCategory.isNotEmpty()) return byCategory
+        }
+
+        return pool
+    }
+
+    private suspend fun resolveGamesFromPlayedEntries(entries: List<PlayedGameEntity>): List<Game> {
+        if (entries.isEmpty()) {
+            return emptyList()
+        }
+
+        val ids = entries.map { it.gameId }.distinct()
+        val gamesById = gameDao.getGamesByIds(ids).associateBy { it.id }
+        return entries.mapNotNull { played ->
+            gamesById[played.gameId]?.toDomain()
+        }
+    }
+
+    private suspend fun readCatalogFromLocal(): GameCatalog? {
+        val categories = catalogDao.getCategories()
+        val languages = catalogDao.getLanguages()
+        if (categories.isEmpty() || languages.isEmpty()) {
+            return null
+        }
+        return GameCatalog(
+            categories = categories.map { GameCategory(it.id, it.name) },
+            languages = languages.map { GameLanguage(it.code, it.name) },
+        )
+    }
+
+    private suspend fun persistCatalog(catalog: GameCatalog, timestampMs: Long) {
+        val categories = catalog.categories.map { CatalogCategoryEntity(id = it.id, name = it.name) }
+        val languages = catalog.languages.map { CatalogLanguageEntity(code = it.code, name = it.name) }
+        val hash = buildCatalogHash(catalog)
+        val previousHash = catalogDao.getSyncState()?.catalogHash
+        if (previousHash == hash) {
+            catalogDao.upsertSyncState(
+                es.sebas1705.axiomnode.data.entities.CatalogSyncStateEntity(
+                    id = 1,
+                    lastSyncAt = timestampMs,
+                    catalogHash = hash,
+                ),
+            )
+            return
+        }
+        catalogDao.replaceCatalog(
+            categories = categories,
+            languages = languages,
+            lastSyncAt = timestampMs,
+            catalogHash = hash,
+        )
+    }
+
+    private fun buildCatalogHash(catalog: GameCatalog): String {
+        val categoryPart = catalog.categories
+            .sortedBy { it.id }
+            .joinToString("|") { "${it.id}:${it.name}" }
+        val languagePart = catalog.languages
+            .sortedBy { it.code }
+            .joinToString("|") { "${it.code}:${it.name}" }
+        return "$categoryPart##$languagePart"
     }
 
     // ─────────────────────────────────────────────────────────────────────────

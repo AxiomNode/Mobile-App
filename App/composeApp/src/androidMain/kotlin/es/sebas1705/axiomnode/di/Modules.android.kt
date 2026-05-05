@@ -5,6 +5,7 @@ import es.sebas1705.axiomnode.auth.GoogleSignInClient
 import es.sebas1705.axiomnode.auth.GoogleSignInService
 import es.sebas1705.axiomnode.config.AppConfig
 import es.sebas1705.axiomnode.data.db.AxiomNodeDatabase
+import es.sebas1705.axiomnode.data.db.DatabaseMigrations
 import es.sebas1705.axiomnode.domain.usecases.AuthUseCase
 import es.sebas1705.axiomnode.domain.usecases.GamesUseCase
 import es.sebas1705.axiomnode.presentation.auth.AuthViewModel
@@ -28,6 +29,7 @@ actual val platformModule: Module
                 AxiomNodeDatabase::class.java,
                 "axiomnode.db",
             )
+                .addMigrations(DatabaseMigrations.MIGRATION_4_5, DatabaseMigrations.MIGRATION_5_6)
                 .fallbackToDestructiveMigration(dropAllTables = true)
                 .build()
         }

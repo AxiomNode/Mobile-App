@@ -1,7 +1,5 @@
 package es.sebas1705.axiomnode.data.entities
 
-import androidx.room.Entity
-import androidx.room.PrimaryKey
 import es.sebas1705.axiomnode.domain.models.Game
 import es.sebas1705.axiomnode.domain.models.Question
 import kotlinx.serialization.encodeToString
@@ -9,11 +7,9 @@ import kotlinx.serialization.json.Json
 import kotlin.time.Clock
 
 /**
- * Entidad Room para almacenar juegos en cache local.
+ * DTO de persistencia para mapear filas de cache de quiz/wordpass.
  */
-@Entity(tableName = "games")
 data class GameEntity(
-    @PrimaryKey
     val id: String,
     val gameType: String, // QUIZ, WORDPASS
     val categoryId: String,

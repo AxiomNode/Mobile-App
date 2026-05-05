@@ -1,112 +1,107 @@
-# AxiomNode — Kotlin Multiplatform Template
+# AxiomNode Mobile App Module
 
-Kotlin Multiplatform project targeting **Android**, **iOS**, and **Desktop (JVM)**.
+Last updated: 2026-05-03.
 
----
+## Purpose
 
-## Toolchain
+Describe the current mobile application module that ships the shared Kotlin Multiplatform client for Android, iOS, and desktop-oriented development flows.
 
-| Tool | Version |
-|---|---|
-| Kotlin | 2.3.20 |
-| Android Gradle Plugin | 9.0.1 |
-| Gradle Wrapper | 9.3.1 |
-| Compose Multiplatform | 1.10.3 |
-| Compose Material3 | 1.10.0-alpha05 |
-| Ktor | 3.4.2 |
-| Koin | 4.2.0 |
-| Room (Android/iOS/Desktop) | 2.8.1 |
-| Kamel | 1.0.9 |
+## Runtime role
 
----
+This module is the executable client surface for end users. It consumes the public edge contract exposed by `api-gateway` through mobile-facing routes and should not embed infrastructure-only secrets.
 
-## Local storage by platform
+## Current platform shape
 
-| Platform | Storage | Location |
-|---|---|---|
-| **Android** | Room (SQLite) via KSP | DB file managed by Android |
-| **Desktop (JVM)** | Room (SQLite, bundled driver) | `~/.axiomnode/countries_room.db` |
-| **iOS** | Room (SQLite, bundled driver) | App Documents directory (`countries_room.db`) |
+- `composeApp`: shared Kotlin Multiplatform application code, including UI, domain, data, configuration, DI, and networking.
+- `androidApp`: Android launcher application.
+- `iosApp`: iOS host application.
+- desktop JVM support remains available for local validation and development workflows.
 
----
+## Product navigation surface
 
-## Project structure
+The shared app currently exposes these top-level destinations:
 
-```
-androidApp/src/main/  ← Android launcher activity + app manifest
-composeApp/src/
-├── commonMain/       ← shared logic, UI, domain, data interfaces
-├── androidMain/      ← Android actuals, Room datasource, platform services
-├── iosMain/          ← iOS entry point (Room datasource)
-├── jvmMain/          ← Desktop entry point (Room datasource)
-└── commonTest/       ← shared tests
-```
+- Home
+- Catalog
+- History
+- Stats
+- Profile
 
-* **[/composeApp](./composeApp/src)** — Compose Multiplatform shared code.
-* **[/androidApp](./androidApp/src/main)** — Android application module.
-* **[/iosApp](./iosApp/iosApp)** — SwiftUI entry point for iOS.
+Additional in-app flows include:
 
----
-
-## Build and Run
-
-### Android
-
-```shell
-# macOS/Linux
-./gradlew :androidApp:assembleDebug
-# Windows
-.\gradlew.bat :androidApp:assembleDebug
-```
-
-### Desktop (JVM)
-
-```shell
-# macOS/Linux
-./gradlew :composeApp:run
-# Windows
-.\gradlew.bat :composeApp:run
-```
-
-### iOS
-
-Open **[/iosApp](./iosApp)** in Xcode and run from there, or use the IDE run configuration.
-
----
+- authentication
+- game lobby by game type
+- active gameplay
+- history detail
+- settings
+- about
 
 ## Architecture notes
 
-- **DI** — Koin; `platformModule` provides the platform-specific `CountryDatasource`.
-- **Networking** — Ktor with platform engines (OkHttp / Darwin / Java).
-- **Image loading** — Kamel.
-- **Cache strategy** — sync-if-stale (24 h TTL) with `forceRefresh` option.
+Current implementation signals from the module:
 
----
+- Compose Multiplatform for shared UI
+- Koin for dependency injection
+- Ktor client for network access
+- Room/SQLite for local persistence
+- build-time environment configuration via generated app config
 
-## Current migration status
+At startup, the app performs an initial auth and content sync before entering the main navigation flow.
 
-- The Android launcher has been split into `:androidApp`, so `:composeApp` now acts as the shared KMP module.
-- `:composeApp` now uses `com.android.kotlin.multiplatform.library` instead of the legacy `com.android.library` plugin.
-- `:androidApp` now relies on AGP built-in Kotlin support instead of the legacy `org.jetbrains.kotlin.android` plugin.
-- `:composeApp:jvmTest` now passes again after removing the incompatible `androidx.room:room-ktx` dependency from the shared JVM test classpath.
-- iOS targets are registered only on macOS hosts so non-macOS environments can validate JVM and Android tasks without resolving Apple-native variants.
+## Configuration model
 
-## ⚠️ Known deprecations (non-blocking)
+Runtime values are injected from environment property files into generated configuration code.
 
-| Warning | Cause | Fix |
-|---|---|---|
-| `KoinApplication(application=…)` deprecated | Koin 4.2 changed API | Update `App.kt` when starting |
+Current config surface includes:
 
-### Next platform step
+- `API_BASE_URL`
+- `AUTH_MODE`
+- `FIREBASE_*`
+- `GOOGLE_WEB_CLIENT_ID`
 
-The Android app split, shared-module plugin migration, AGP built-in Kotlin migration, and JVM test recovery are now in place. The next platform step is broadening automated quality checks around this stabilized baseline:
+The mobile app must use public edge URLs and must not embed infrastructure tokens such as `EDGE_API_TOKEN`.
 
+## Module structure
+
+```text
+App/
+	androidApp/        Android launcher
+	composeApp/        shared app code and build logic
+	iosApp/            iOS host application
+	QUICK_REFERENCE.md build and troubleshooting commands
+	FIREBASE_SETUP.md  Firebase integration setup
+	MVP_README.md      functional MVP context
 ```
-:composeApp  ← KMP library (commonMain + iosMain + jvmMain + androidMain)
-:androidApp  ← com.android.application, depends on :shared
+
+## Build and run
+
+Android debug build:
+
+```bash
+./gradlew :androidApp:assembleDebug
 ```
 
----
+Desktop JVM run:
 
-Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html)
-and [Compose Multiplatform](https://github.com/JetBrains/compose-multiplatform/#compose-multiplatform).
+```bash
+./gradlew :composeApp:run
+```
+
+iOS execution requires Xcode on macOS through the `iosApp` project.
+
+## Validation
+
+Baseline validation in current workflows includes:
+
+- `:composeApp:jvmTest`
+- `:androidApp:lint`
+- Android debug build from `:androidApp`
+- iOS simulator framework linking on macOS runners
+
+## Related documents
+
+- [QUICK_REFERENCE.md](QUICK_REFERENCE.md)
+- [FIREBASE_SETUP.md](FIREBASE_SETUP.md)
+- [MVP_README.md](MVP_README.md)
+- [../README.md](../README.md)
+- [../../docs/guides/experience/mobile-app-development-firebase.md](../../docs/guides/experience/mobile-app-development-firebase.md)

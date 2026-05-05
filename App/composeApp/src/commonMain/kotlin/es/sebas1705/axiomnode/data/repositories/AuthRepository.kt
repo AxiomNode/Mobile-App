@@ -41,7 +41,12 @@ class AuthRepository(
             return Result.success(user)
         }
 
-        return httpClient.syncSessionFromFirebase(idToken)
+        return httpClient.syncSessionFromFirebase(
+            idToken = idToken,
+            email = email,
+            displayName = displayName,
+            photoUrl = photoUrl,
+        )
             .map { user ->
                 user.copy(
                     email = email.ifEmpty { user.email },
@@ -51,13 +56,20 @@ class AuthRepository(
             }
             .mapCatching { sessionUser ->
                 val enriched = httpClient.getUserProfile(idToken).getOrNull()
-                val cached = userProfileDao.getLastProfile()?.toDomain()
+                val cached = userProfileDao.getProfileByUid(sessionUser.firebaseUid)?.toDomain()
+                    ?: userProfileDao.getLastProfile()?.toDomain()
                 val enrichedUid = enriched?.firebaseUid
                 val enrichedEmail = enriched?.email
+                val resolvedUid = sequenceOf(
+                    enrichedUid,
+                    sessionUser.firebaseUid,
+                    cached?.firebaseUid,
+                ).firstOrNull { !it.isNullOrBlank() }
+                    ?: email.ifBlank { "anonymous-player" }
 
                 // Prefer newest backend profile. If it fails, keep usable data from cache/session.
                 val resolved = (enriched ?: cached ?: sessionUser).copy(
-                    firebaseUid = if (enrichedUid.isNullOrBlank()) sessionUser.firebaseUid else enrichedUid,
+                    firebaseUid = resolvedUid,
                     email = when {
                         !email.isBlank() -> email
                         !enrichedEmail.isNullOrBlank() -> enrichedEmail
@@ -79,24 +91,31 @@ class AuthRepository(
     }
 
     override suspend fun getCurrentUser(): Result<User?> {
-        currentUser?.let { return Result.success(it) }
-
         val cachedProfile = userProfileDao.getLastProfile()?.toDomain()
+        val localSnapshot = currentUser ?: cachedProfile
         val token = authToken.orEmpty()
 
         if (token.isBlank()) {
-            currentUser = cachedProfile
-            return Result.success(cachedProfile)
+            currentUser = localSnapshot
+            return Result.success(localSnapshot)
         }
 
         return httpClient.getUserProfile(token)
             .onSuccess { remote ->
-                currentUser = remote
-                userProfileDao.upsertProfile(UserProfileEntity.fromDomain(remote))
+                val fallbackUid = sequenceOf(
+                    remote.firebaseUid,
+                    currentUser?.firebaseUid,
+                    cachedProfile?.firebaseUid,
+                ).firstOrNull { !it.isNullOrBlank() }
+                    ?: remote.email.ifBlank { "anonymous-player" }
+                val normalized = remote.copy(firebaseUid = fallbackUid)
+                currentUser = normalized
+                userProfileDao.upsertProfile(UserProfileEntity.fromDomain(normalized))
             }
             .map { it as User? }
             .recoverCatching {
-                cachedProfile
+                currentUser = localSnapshot
+                localSnapshot
             }
     }
 

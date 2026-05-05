@@ -1,9 +1,8 @@
 package es.sebas1705.axiomnode.presentation.auth
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,20 +13,25 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import es.sebas1705.axiomnode.resources.Res
+import es.sebas1705.axiomnode.resources.logo
+import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun AuthScreen(
@@ -36,66 +40,58 @@ fun AuthScreen(
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    // Auto-navigate when authenticated
     LaunchedEffect(state.isAuthenticated, onSignInSuccess) {
-        if (state.isAuthenticated && state.user != null) {
-            onSignInSuccess()
-        }
+        if (state.isAuthenticated && state.user != null) onSignInSuccess()
     }
 
-    Surface(
+    LaunchedEffect(state.error) {
+        state.error?.let { snackbarHostState.showSnackbar(it) }
+    }
+
+    Scaffold(
         modifier = modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 32.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = MaterialTheme.colorScheme.background,
+    ) { padding ->
+        Box(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentAlignment = Alignment.Center,
         ) {
-            Spacer(Modifier.weight(1f))
-
-            // ── Brand header ──────────────────────────────────────────
-            Text(
-                text = "AxiomNode",
-                style = MaterialTheme.typography.displayMedium,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = "Aprende jugando",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
-            Spacer(Modifier.weight(1f))
-
-            // ── Welcome card (shown briefly after auth) ─────────────
-            AnimatedVisibility(
-                visible = state.isAuthenticated && state.user != null,
-                enter = fadeIn(),
-                exit = fadeOut(),
-            ) {
-                state.user?.let { user ->
-                    WelcomeCard(
-                        userName = user.displayName ?: user.email,
-                        onContinue = onSignInSuccess,
-                    )
-                }
-            }
-
-            // ── Sign-in controls ────────────────────────────────────
-            AnimatedVisibility(
-                visible = !state.isAuthenticated,
-                enter = fadeIn(),
-                exit = fadeOut(),
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.background,
             ) {
                 Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 32.dp),
+                    verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.fillMaxWidth(),
                 ) {
+                    Spacer(Modifier.weight(1f))
+
+                    Image(
+                        painter = painterResource(Res.drawable.logo),
+                        contentDescription = "AxiomNode",
+                        modifier = Modifier.size(140.dp),
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        text = "AxiomNode",
+                        style = MaterialTheme.typography.displayMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = "Aprende jugando",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+
+                    Spacer(Modifier.weight(1f))
+
                     if (state.isLoading) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(48.dp),
@@ -119,100 +115,23 @@ fun AuthScreen(
                                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                             ),
-                            elevation = ButtonDefaults.elevatedButtonElevation(
-                                defaultElevation = 2.dp,
-                            ),
+                            elevation = ButtonDefaults.elevatedButtonElevation(defaultElevation = 2.dp),
                         ) {
-                            Text(
-                                text = "Iniciar con Google",
-                                style = MaterialTheme.typography.labelLarge,
-                            )
+                            Text("Iniciar con Google", style = MaterialTheme.typography.labelLarge)
                         }
                     }
+
+                    Spacer(Modifier.weight(1f))
+
+                    Text(
+                        text = "v1.0 · AxiomNode",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.outline,
+                        modifier = Modifier.padding(bottom = 24.dp),
+                    )
                 }
-            }
-
-            // ── Error ─────────────────────────────────────────────────
-            AnimatedVisibility(
-                visible = state.error != null,
-                enter = fadeIn(),
-                exit = fadeOut(),
-            ) {
-                state.error?.let { error ->
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 24.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer,
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                    ) {
-                        Text(
-                            text = error,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                            modifier = Modifier.padding(16.dp),
-                        )
-                    }
-                }
-            }
-
-            Spacer(Modifier.weight(1f))
-
-            // ── Footer ────────────────────────────────────────────────
-            Text(
-                text = "v1.0 · AxiomNode",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.outline,
-                modifier = Modifier.padding(bottom = 24.dp),
-            )
-        }
-    }
-}
-
-@Composable
-private fun WelcomeCard(
-    userName: String,
-    onContinue: () -> Unit,
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        ),
-        shape = RoundedCornerShape(20.dp),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(
-                text = "¡Bienvenido!",
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = userName,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            Spacer(Modifier.height(24.dp))
-
-            Button(
-                onClick = onContinue,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
-                shape = RoundedCornerShape(12.dp),
-            ) {
-                Text("Continuar", style = MaterialTheme.typography.labelLarge)
             }
         }
     }
 }
-
 

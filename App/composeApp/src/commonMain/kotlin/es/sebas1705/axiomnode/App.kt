@@ -5,6 +5,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -38,6 +39,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import es.sebas1705.axiomnode.data.preferences.PreferencesRepository
+import es.sebas1705.axiomnode.data.preferences.ThemeMode
 import es.sebas1705.axiomnode.di.dataModule
 import es.sebas1705.axiomnode.di.platformModule
 import es.sebas1705.axiomnode.data.network.ConnectivityMonitor
@@ -57,6 +60,7 @@ import es.sebas1705.axiomnode.presentation.loading.LoadingScreen
 import es.sebas1705.axiomnode.presentation.lobby.GameLobbyScreen
 import es.sebas1705.axiomnode.presentation.navigation.Destination
 import es.sebas1705.axiomnode.presentation.navigation.Navigator
+import es.sebas1705.axiomnode.presentation.navigation.PlatformBackHandler
 import es.sebas1705.axiomnode.presentation.navigation.TopDestination
 import es.sebas1705.axiomnode.presentation.navigation.rememberNavigator
 import es.sebas1705.axiomnode.presentation.profile.ProfileScreen
@@ -96,7 +100,15 @@ fun App(
             modules(dataModule, platformModule)
         }
     ) {
-        AppTheme {
+        val preferencesRepository: PreferencesRepository = koinInject()
+        val preferences by preferencesRepository.preferences.collectAsStateWithLifecycle()
+        val darkTheme = when (preferences.themeMode) {
+            ThemeMode.SYSTEM -> isSystemInDarkTheme()
+            ThemeMode.LIGHT -> false
+            ThemeMode.DARK -> true
+        }
+
+        AppTheme(darkTheme = darkTheme) {
             BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                 val windowSize = windowSizeFor(maxWidth)
                 CompositionLocalProvider(LocalWindowSize provides windowSize) {
@@ -195,6 +207,15 @@ private fun MainScene(
 ) {
     val navigator = rememberNavigator()
     val windowSize = LocalWindowSize.current
+    val handleBack = navigator.canGoBack || navigator.currentTab != TopDestination.HOME
+
+    PlatformBackHandler(enabled = handleBack) {
+        if (navigator.canGoBack) {
+            navigator.pop()
+        } else if (navigator.currentTab != TopDestination.HOME) {
+            navigator.selectTab(TopDestination.HOME)
+        }
+    }
 
     val tabsVisible = navigator.current is Destination.Top
 

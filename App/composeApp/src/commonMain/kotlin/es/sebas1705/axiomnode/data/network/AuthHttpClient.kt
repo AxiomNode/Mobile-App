@@ -6,75 +6,48 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.get
-import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class FirebaseSessionRequest(
-    val idToken: String,
+data class PlayerProfileUpsertRequest(
+    val email: String? = null,
+    val displayName: String? = null,
+    val photoUrl: String? = null,
+    val preferredLanguage: String? = null,
 )
 
 /**
- * Response from POST /v1/backoffice/auth/session
- * (api-gateway → bff-backoffice → microservice-users /users/firebase/session)
+ * Response from bff-mobile player profile endpoints.
+ * (api-gateway -> bff-mobile -> player store)
  */
 @Serializable
-data class SessionSyncResponse(
-    val message: String? = null,
-    val userId: String? = null,
-    val firebaseUid: String? = null,
-    val provider: String? = null,
-    val role: String? = null,
-) {
-    fun toDomain(): User = User(
-        firebaseUid = firebaseUid ?: userId ?: "",
-        email = "", // Session endpoint doesn't return email; filled from Firebase Auth
-        displayName = null,
-        photoUrl = null,
-        role = try {
-            UserRole.valueOf(role?.uppercase() ?: "GAMER")
-        } catch (_: Exception) {
-            UserRole.GAMER
-        },
-    )
-}
-
-/**
- * Response from GET /v1/backoffice/auth/me
- * (api-gateway → bff-backoffice → microservice-users /users/me/profile)
- * Returns full profile with stats.
- */
-@Serializable
-data class UserProfileResponse(
+data class PlayerProfileResponse(
     val profile: ProfileData? = null,
-    val role: String? = null,
 ) {
     @Serializable
     data class ProfileData(
-        val firebaseUid: String? = null,
+        val playerId: String? = null,
         val email: String? = null,
         val displayName: String? = null,
         val photoUrl: String? = null,
+        val preferredLanguage: String? = null,
     )
 
     fun toDomain(): User = User(
-        firebaseUid = profile?.firebaseUid ?: "",
+        firebaseUid = profile?.playerId ?: "",
         email = profile?.email ?: "",
         displayName = profile?.displayName,
         photoUrl = profile?.photoUrl,
-        role = try {
-            UserRole.valueOf(role?.uppercase() ?: "GAMER")
-        } catch (_: Exception) {
-            UserRole.GAMER
-        },
+        role = UserRole.GAMER,
     )
 }
 
 /**
- * HTTP client for auth operations via api-gateway → bff-backoffice → microservice-users.
+ * HTTP client for auth/player operations via api-gateway -> bff-mobile.
  *
  * @param baseUrl The api-gateway edge URL (e.g. http://10.0.2.2:7005).
  */
@@ -83,29 +56,41 @@ class AuthHttpClient(
     private val baseUrl: String,
 ) {
     /**
-     * Sync Firebase session with backend.
-     * Route: POST /v1/backoffice/auth/session
+     * Ensures player profile exists in bff-mobile using the Firebase token claims.
+     * Route: PUT /v1/mobile/player/profile
      */
-    suspend fun syncSessionFromFirebase(idToken: String): Result<User> = try {
-        val response = httpClient.post("$baseUrl/v1/backoffice/auth/session") {
+    suspend fun syncSessionFromFirebase(
+        idToken: String,
+        email: String? = null,
+        displayName: String? = null,
+        photoUrl: String? = null,
+    ): Result<User> = try {
+        val response = httpClient.put("$baseUrl/v1/mobile/player/profile") {
+            bearerAuth(idToken)
             contentType(ContentType.Application.Json)
-            setBody(FirebaseSessionRequest(idToken))
+            setBody(
+                PlayerProfileUpsertRequest(
+                    email = email,
+                    displayName = displayName,
+                    photoUrl = photoUrl,
+                ),
+            )
         }
-        val session = response.body<SessionSyncResponse>()
+        val session = response.body<PlayerProfileResponse>()
         Result.success(session.toDomain())
     } catch (e: Exception) {
         Result.failure(e)
     }
 
     /**
-     * Get the current user's full profile.
-     * Route: GET /v1/backoffice/auth/me
+     * Get the current player's profile from bff-mobile.
+     * Route: GET /v1/mobile/player/profile
      */
     suspend fun getUserProfile(authToken: String): Result<User> = try {
-        val response = httpClient.get("$baseUrl/v1/backoffice/auth/me") {
+        val response = httpClient.get("$baseUrl/v1/mobile/player/profile") {
             bearerAuth(authToken)
         }
-        val profile = response.body<UserProfileResponse>()
+        val profile = response.body<PlayerProfileResponse>()
         Result.success(profile.toDomain())
     } catch (e: Exception) {
         Result.failure(e)

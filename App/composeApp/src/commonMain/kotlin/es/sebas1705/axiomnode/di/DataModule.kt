@@ -4,6 +4,7 @@ import es.sebas1705.axiomnode.config.AppConfig
 import es.sebas1705.axiomnode.config.createAppConfig
 import es.sebas1705.axiomnode.data.db.AxiomNodeDatabase
 import es.sebas1705.axiomnode.data.network.AuthHttpClient
+import es.sebas1705.axiomnode.data.network.ConnectivityMonitor
 import es.sebas1705.axiomnode.data.network.GameResultSyncEngine
 import es.sebas1705.axiomnode.data.network.GamesHttpClient
 import es.sebas1705.axiomnode.data.repositories.AuthRepository
@@ -19,10 +20,14 @@ import io.ktor.client.plugins.logging.Logging
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import org.koin.dsl.module
+import es.sebas1705.axiomnode.data.preferences.PreferencesRepository
 
 val dataModule = module {
     // AppConfig singleton
     single<AppConfig> { createAppConfig() }
+
+    // App-wide local preferences (in-memory)
+    single { PreferencesRepository() }
 
     // HTTP client for public mobile edge endpoints.
     single<HttpClient> {
@@ -50,10 +55,12 @@ val dataModule = module {
     single { get<AxiomNodeDatabase>().gameResultDao() }
     single { get<AxiomNodeDatabase>().playedGameDao() }
     single { get<AxiomNodeDatabase>().userProfileDao() }
+    single { get<AxiomNodeDatabase>().catalogDao() }
 
     // Network clients – receive AppConfig for base URLs
     single { AuthHttpClient(get(), get<AppConfig>().apiBaseUrl) }
     single { GamesHttpClient(get(), get<AppConfig>().apiBaseUrl) }
+    single { ConnectivityMonitor(get(), get<AppConfig>()) }
 
     // Sync engine
     single { GameResultSyncEngine(get(), get<GamesHttpClient>()) }
@@ -72,6 +79,7 @@ val dataModule = module {
             gameDao = get(),
             gameResultDao = get(),
             playedGameDao = get(),
+            catalogDao = get(),
             syncEngine = get<GameResultSyncEngine>(),
             config = get<AppConfig>(),
         )

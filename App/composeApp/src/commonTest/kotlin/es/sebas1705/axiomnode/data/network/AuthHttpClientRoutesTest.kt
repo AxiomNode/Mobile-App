@@ -18,13 +18,24 @@ import kotlin.test.assertTrue
 class AuthHttpClientRoutesTest {
 
     @Test
-    fun `sync session uses backoffice auth session endpoint`() {
+        fun `sync session uses mobile player profile upsert endpoint`() {
         var capturedPath = ""
         val http = HttpClient(
             MockEngine { request ->
                 capturedPath = request.url.encodedPath
                 respond(
-                    content = """{"message":"ok","firebaseUid":"uid-1","role":"gamer"}""",
+                                        content = """
+                                                {
+                                                    "profile": {
+                                                        "playerId": "uid-1",
+                                                        "email": "test@axiomnode.es",
+                                                        "displayName": "Test"
+                                                    },
+                                                    "stats": {
+                                                        "totalGames": 0
+                                                    }
+                                                }
+                                        """.trimIndent(),
                     status = HttpStatusCode.OK,
                     headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
                 )
@@ -39,11 +50,11 @@ class AuthHttpClientRoutesTest {
         val result = runBlocking { client.syncSessionFromFirebase("firebase-token") }
 
         assertTrue(result.isSuccess)
-        assertEquals("/v1/backoffice/auth/session", capturedPath)
+                assertEquals("/v1/mobile/player/profile", capturedPath)
     }
 
     @Test
-    fun `get profile uses backoffice auth me endpoint`() {
+        fun `get profile uses mobile player profile endpoint`() {
         var capturedPath = ""
         val http = HttpClient(
             MockEngine { request ->
@@ -51,9 +62,8 @@ class AuthHttpClientRoutesTest {
                 respond(
                     content = """
                         {
-                          "role": "gamer",
                           "profile": {
-                            "firebaseUid": "uid-1",
+                                                        "playerId": "uid-1",
                             "email": "test@axiomnode.es",
                             "displayName": "Test"
                           }
@@ -73,6 +83,6 @@ class AuthHttpClientRoutesTest {
         val result = runBlocking { client.getUserProfile("firebase-token") }
 
         assertTrue(result.isSuccess)
-        assertEquals("/v1/backoffice/auth/me", capturedPath)
+        assertEquals("/v1/mobile/player/profile", capturedPath)
     }
 }

@@ -1,90 +1,98 @@
-# AxiomNode Mobile - Quick Reference
+# AxiomNode Mobile Quick Reference
+
+Last updated: 2026-05-03.
+
+## Purpose
+
+Fast command and troubleshooting reference for the current `App` module layout.
 
 ## Build commands
 
 ### Android
-./gradlew :composeApp:assembleDebug
-./gradlew :composeApp:assembleRelease
+
+```bash
+./gradlew :androidApp:assembleDebug
+./gradlew :androidApp:assembleStgDebug
+./gradlew :androidApp:assembleProdRelease
+```
+
+### Shared module compilation
+
+```bash
 ./gradlew :composeApp:compileDebugKotlinAndroid
-./gradlew :composeApp:installDebug
+./gradlew :composeApp:compileKotlinJvm
+```
 
 ### Desktop JVM
+
+```bash
 ./gradlew :composeApp:run
 ./gradlew :composeApp:packageDistributionForCurrentOS
-./gradlew :composeApp:compileKotlinJvm
+```
 
 ### iOS
+
+```bash
 ./gradlew :composeApp:linkDebugFrameworkIosArm64
-./gradlew :composeApp:compileDebugKotlinIosArm64
-open iosApp/iosApp.xcodeproj
+./gradlew :composeApp:linkDebugFrameworkIosSimulatorArm64
+```
 
-## Test commands
+Run the iOS host app from `iosApp` in Xcode on macOS.
 
-### Unit tests
-./gradlew :composeApp:test
-./gradlew :composeApp:testDebugUnitTest
+## Validation commands
 
-### Instrumented tests
-./gradlew :composeApp:connectedAndroidTest
+```bash
+./gradlew :composeApp:jvmTest
+./gradlew :androidApp:lint
+./gradlew :androidApp:assembleDebug
+```
 
-## Lint and dependency checks
+## Environment selection
 
-./gradlew :composeApp:lintDebug
-./gradlew dependencies
-./gradlew :composeApp:dependencies
+The generated app config resolves environment from the task name or from an explicit property:
+
+```bash
+./gradlew :androidApp:assembleStgDebug
+./gradlew :composeApp:run -Paxiomnode.env=dev
+```
+
+Available Android flavor names are `dev`, `stg`, and `prod`.
 
 ## Clean commands
 
+```bash
 ./gradlew clean
+./gradlew :androidApp:clean
 ./gradlew :composeApp:clean
+```
 
-## Continuous development helpers
-
-./gradlew :composeApp:compileDebugKotlinAndroid --continuous
-./gradlew :composeApp:run --continuous
-
-## Debugging helpers
-
-./gradlew :composeApp:run --debug-jvm
-
-## Dependency edit pattern
-
-1. Add version and library in gradle/libs.versions.toml.
-2. Reference the alias in composeApp/build.gradle.kts.
-3. Re-run a target compile command.
-
-## Common troubleshooting
+## Troubleshooting
 
 ### expect/actual mismatch
-- Verify the symbol exists in commonMain and all platform source sets.
-- Re-run Android and JVM compilation tasks.
 
-### Room symbol or generated code issues
-- Run KSP tasks for the impacted targets.
+- Verify the declaration exists in `commonMain` and in each required platform source set.
+- Re-run one Android compile task and one JVM or iOS link task.
 
-### Gradle cache corruption
+### Generated config or env issues
+
+- Check `composeApp/env/*.properties` inputs.
+- Confirm `API_BASE_URL` points to the public edge and not to an internal service hostname.
+- Re-run a task with `-Paxiomnode.env=<env>` if task-name inference is ambiguous.
+
+### Room or KSP issues
+
+- Re-run the affected compile task after cleaning the module.
+- Verify the dependency change was added through `gradle/libs.versions.toml` and referenced from `composeApp/build.gradle.kts`.
+
+### Gradle cache issues
+
+```bash
 ./gradlew clean --no-daemon
-rm -rf .gradle
-./gradlew :composeApp:build --no-daemon
+./gradlew :androidApp:assembleDebug --no-daemon
+```
 
-## Git essentials
+## Related documents
 
-git status
-git diff
-git add .
-git commit -m "feat: ..."
-git push origin main
-
-## Useful references
-
-- Kotlin Multiplatform: https://kotlinlang.org/docs/multiplatform.html
-- Compose Multiplatform: https://github.com/JetBrains/compose-multiplatform
-- Room docs: https://developer.android.com/training/data-storage/room
-- Ktor docs: https://ktor.io/docs/client.html
-- Koin docs: https://insert-koin.io/
-
-## Notes
-
-- Hot reload is limited in KMP; rebuild cycles are expected.
-- iOS build/run requires a macOS/Xcode environment.
-- Keep expect/actual declarations synchronized across targets.
+- [README.md](README.md)
+- [FIREBASE_SETUP.md](FIREBASE_SETUP.md)
+- [MVP_README.md](MVP_README.md)

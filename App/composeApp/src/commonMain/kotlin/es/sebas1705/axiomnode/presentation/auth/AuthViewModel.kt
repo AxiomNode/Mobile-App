@@ -84,6 +84,25 @@ class AuthViewModel(
         }
     }
 
+    /**
+     * Tries to refresh the remote profile whenever user re-enters the app/screen.
+     * Failures are silent to keep offline UX smooth.
+     */
+    fun syncProfileOnEnter() {
+        viewModelScope.launch {
+            authUseCase.getCurrentUser()
+                .onSuccess { user ->
+                    if (user != null) {
+                        _state.value = _state.value.copy(
+                            user = user,
+                            isAuthenticated = true,
+                            error = null,
+                        )
+                    }
+                }
+        }
+    }
+
     private fun checkCurrentUser() {
         viewModelScope.launch {
             authUseCase.getCurrentUser()

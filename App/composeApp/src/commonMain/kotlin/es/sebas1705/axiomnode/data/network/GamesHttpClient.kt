@@ -17,6 +17,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -263,21 +264,44 @@ class GamesHttpClient(
     }
 
     private fun parseGameFromModel(model: JsonObject, fallbackType: GameType): Game? {
-        val game = model.jsonObjectOrNull("game") ?: model
+        val requestPayload = model.jsonObjectOrDecoded("request", "requestJson")
+        val responsePayload = model.jsonObjectOrDecoded("response", "responseJson")
+
+        val game = model.jsonObjectOrNull("game")
+            ?: responsePayload?.jsonObjectOrNull("game")
+            ?: responsePayload
+            ?: model
+
         val resolvedType = parseGameType(
-            game.stringOrNull("gameType", "game_type") ?: model.stringOrNull("gameType", "game_type"),
+            game.stringOrNull("gameType", "game_type")
+                ?: model.stringOrNull("gameType", "game_type")
+                ?: responsePayload?.stringOrNull("gameType", "game_type")
+                ?: requestPayload?.stringOrNull("gameType", "game_type"),
             fallbackType,
         )
 
         val id = game.stringOrNull("id", "gameId", "game_id", "modelId")
+            ?: model.stringOrNull("id", "gameId", "game_id", "modelId")
             ?: "generated-${resolvedType.name.lowercase()}-${Random.nextInt(100000, 999999)}"
-        val categoryId = game.stringOrNull("categoryId", "category_id") ?: "general"
-        val categoryName = game.stringOrNull("categoryName", "category_name") ?: categoryId
-        val language = game.stringOrNull("language", "lang") ?: "es"
+        val categoryId = game.stringOrNull("categoryId", "category_id")
+            ?: model.stringOrNull("categoryId", "category_id")
+            ?: responsePayload?.stringOrNull("categoryId", "category_id")
+            ?: requestPayload?.stringOrNull("categoryId", "category_id")
+            ?: "general"
+        val categoryName = game.stringOrNull("categoryName", "category_name")
+            ?: model.stringOrNull("categoryName", "category_name")
+            ?: responsePayload?.stringOrNull("categoryName", "category_name")
+            ?: requestPayload?.stringOrNull("categoryName", "category_name")
+            ?: categoryId
+        val language = game.stringOrNull("language", "lang")
+            ?: model.stringOrNull("language", "lang")
+            ?: responsePayload?.stringOrNull("language", "lang")
+            ?: requestPayload?.stringOrNull("language", "lang")
+            ?: "es"
 
         val questions = when (resolvedType) {
-            GameType.QUIZ -> parseQuizQuestions(game)
-            GameType.WORDPASS -> parseWordpassQuestions(game)
+            GameType.QUIZ -> parseQuizQuestions(game, responsePayload)
+            GameType.WORDPASS -> parseWordpassQuestions(game, responsePayload)
         }
 
         if (questions.isEmpty()) return null
@@ -293,15 +317,17 @@ class GamesHttpClient(
     }
 
     private fun parseQuizQuestions(game: JsonObject): List<Question> {
-        val source = game.jsonArrayOrNull("questions") ?: return emptyList()
+        val source = game.jsonArrayOrNull("questions")
+            ?: game.jsonObjectOrNull("game")?.jsonArrayOrNull("questions")
+            ?: return emptyList()
         return source.mapIndexedNotNull { index, element ->
             val obj = element as? JsonObject ?: return@mapIndexedNotNull null
             val text = obj.stringOrNull("text", "question", "prompt") ?: return@mapIndexedNotNull null
-            val options = obj.stringListOrNull("options", "choices").orEmpty()
+            val options = obj.stringListOrNull("answers", "options", "choices").orEmpty()
             if (options.isEmpty()) return@mapIndexedNotNull null
 
             val explicit = obj.stringOrNull("correctAnswer", "correct_answer", "answer")
-            val correctIndex = obj.intOrNull("correct_index", "correctIndex")
+            val correctIndex = obj.intOrNull("correctIndex", "correct_index")
             val byIndex = correctIndex?.let { idx -> options.getOrNull(idx) }
             val correctAnswer = explicit ?: byIndex ?: return@mapIndexedNotNull null
 
@@ -314,12 +340,25 @@ class GamesHttpClient(
         }
     }
 
+    private fun parseQuizQuestions(primary: JsonObject, secondary: JsonObject?): List<Question> {
+        val primaryParsed = parseQuizQuestions(primary)
+        if (primaryParsed.isNotEmpty()) {
+            return primaryParsed
+        }
+        if (secondary == null || secondary == primary) {
+            return emptyList()
+        }
+        return parseQuizQuestions(secondary)
+    }
+
     private fun parseWordpassQuestions(game: JsonObject): List<Question> {
-        val source = game.jsonArrayOrNull("words") ?: return emptyList()
+        val source = game.jsonArrayOrNull("words")
+            ?: game.jsonObjectOrNull("game")?.jsonArrayOrNull("words")
+            ?: return emptyList()
         return source.mapIndexedNotNull { index, element ->
             val obj = element as? JsonObject ?: return@mapIndexedNotNull null
-            val answer = obj.stringOrNull("answer", "word", "solution") ?: return@mapIndexedNotNull null
-            val clue = obj.stringOrNull("hint", "clue", "question", "definition", "letter")
+            val answer = obj.stringOrNull("word", "answer", "solution") ?: return@mapIndexedNotNull null
+            val clue = obj.stringOrNull("definition", "hint", "clue", "question", "letter")
                 ?: "Palabra ${index + 1}"
 
             Question(
@@ -329,6 +368,17 @@ class GamesHttpClient(
                 correctAnswer = answer,
             )
         }
+    }
+
+    private fun parseWordpassQuestions(primary: JsonObject, secondary: JsonObject?): List<Question> {
+        val primaryParsed = parseWordpassQuestions(primary)
+        if (primaryParsed.isNotEmpty()) {
+            return primaryParsed
+        }
+        if (secondary == null || secondary == primary) {
+            return emptyList()
+        }
+        return parseWordpassQuestions(secondary)
     }
 
     private fun parseGameType(raw: String?, fallback: GameType): GameType {
@@ -355,6 +405,22 @@ class GamesHttpClient(
 
     private fun JsonObject.jsonArrayOrNull(key: String): JsonArray? =
         (this[key] as? JsonArray)
+
+    private fun JsonObject.jsonObjectOrDecoded(vararg keys: String): JsonObject? {
+        for (key in keys) {
+            val element = this[key] ?: continue
+            if (element is JsonObject) {
+                return element
+            }
+
+            val raw = runCatching { element.jsonPrimitive.content }.getOrNull() ?: continue
+            val decoded = runCatching { Json.parseToJsonElement(raw) as? JsonObject }.getOrNull()
+            if (decoded != null) {
+                return decoded
+            }
+        }
+        return null
+    }
 
     private fun JsonObject.stringOrNull(vararg keys: String): String? {
         for (key in keys) {

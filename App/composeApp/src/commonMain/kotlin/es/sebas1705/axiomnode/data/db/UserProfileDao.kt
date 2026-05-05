@@ -11,6 +11,9 @@ interface UserProfileDao {
     @Query("SELECT * FROM user_profiles ORDER BY lastUpdatedAt DESC LIMIT 1")
     suspend fun getLastProfile(): UserProfileEntity?
 
+    @Query("SELECT * FROM user_profiles WHERE firebaseUid = :firebaseUid LIMIT 1")
+    suspend fun getProfileByUid(firebaseUid: String): UserProfileEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertProfile(profile: UserProfileEntity)
 

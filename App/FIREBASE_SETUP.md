@@ -1,19 +1,37 @@
 # Firebase & Google Sign-In Setup Guide
 
+Last updated: 2026-05-03.
+
+## Purpose
+
+Document the current Firebase and Google Sign-In setup for the mobile app module.
+
 ## Overview
 
-The AxiomNode mobile app uses **Firebase Authentication** with **Google Sign-In** as the primary auth provider. The idToken obtained from Firebase is sent to the backend (`microservice-users`) for session management.
+The mobile app uses Firebase-backed Google Sign-In, but the implementation is not symmetric across platforms.
 
-## Architecture
+Current state:
+
+- Android implements Google Sign-In through Credential Manager plus Firebase Auth.
+- iOS currently uses a stub implementation and can only complete sign-in in `AUTH_MODE=dev`.
+- Desktop JVM currently uses a stub implementation and can only complete sign-in in `AUTH_MODE=dev`.
+
+When Firebase-backed sign-in succeeds, the app sends the resulting token through the mobile edge path to create or update the player profile.
+
+## Runtime flow
 
 ```
 User → Google Sign-In → Firebase Auth → idToken
                                           ↓
-                              Mobile App sends idToken
+                              Mobile App sends token + profile hints
                                           ↓
-                     api-gateway → bff-mobile → microservice-users
-                                                (verifies with Firebase Admin SDK)
+                     api-gateway → bff-mobile → player profile upsert/read
 ```
+
+Current mobile auth routes used by the app:
+
+- `PUT /v1/mobile/player/profile`
+- `GET /v1/mobile/player/profile`
 
 ## Step-by-step setup
 
@@ -82,6 +100,8 @@ The backoffice web app is already registered. The **Web client ID** from this re
 5. Run: `node secrets/scripts/prepare-runtime-secrets.mjs <dev|stg|pro> mobile-app`
 6. In Xcode, add the injected file to the iosApp target if the project has not referenced it yet.
 
+At the moment this file is preparatory for the future iOS Firebase integration. The current iOS sign-in implementation still falls back to `AUTH_MODE=dev`.
+
 ### 3. Get the Web Client ID
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com) → APIs & Credentials
@@ -117,21 +137,18 @@ The backoffice web app is already registered. The **Web client ID** from this re
 ### 5. iOS signing setup
 
 - Configure in Xcode → Signing & Capabilities
-- Set `TEAM_ID` in `iosApp/Configuration/Config.xcconfig`
-- Enable "Sign in with Apple" capability if desired (optional)
 - Ensure the bundle ID matches what's registered in Firebase
+- Treat this as groundwork for future native iOS Firebase integration rather than a fully active runtime path today
 
 ### 6. Desktop (JVM)
 
 Desktop does **not** use `google-services.json` or Firebase SDKs directly.
 
-Strategy:
-- Opens system browser for Google OAuth2 (PKCE flow)
-- Receives callback with auth code
-- Exchanges for token via backend
-- Or: use Firebase REST API with the web API key
+Current state:
 
-For MVP: Desktop can use the `dev` auth mode (bypass Firebase) during development.
+- the desktop sign-in implementation is still a stub
+- `AUTH_MODE=dev` is the supported local path for desktop validation
+- production-grade desktop OAuth flow is not yet implemented in this module
 
 ## Environment files summary
 
@@ -142,20 +159,19 @@ For MVP: Desktop can use the `dev` auth mode (bypass Firebase) during developmen
 | `composeApp/env/prod.properties`| Production environment config   | ✅         |
 | `composeApp/env/env.properties.example` | Template (committed)    | ❌         |
 | `composeApp/google-services.json` | Android Firebase config       | ✅         |
-| `composeApp/google-services.json.example` | Template (committed)  | ❌         |
 | `iosApp/iosApp/GoogleService-Info.plist` | iOS Firebase config    | ✅         |
 
 ## Build commands per environment
 
 ```bash
 # Dev (default)
-./gradlew :composeApp:assembleDevDebug
+./gradlew :androidApp:assembleDevDebug
 
 # Staging
-./gradlew :composeApp:assembleStgDebug -Paxiomnode.env=stg
+./gradlew :androidApp:assembleStgDebug -Paxiomnode.env=stg
 
 # Production release
-./gradlew :composeApp:assembleProdRelease -Paxiomnode.env=prod
+./gradlew :androidApp:assembleProdRelease -Paxiomnode.env=prod
 
 # Desktop
 ./gradlew :composeApp:run -Paxiomnode.env=dev
@@ -184,6 +200,12 @@ The injector now:
 - copies `google-services.json` into `mobile-app/App/composeApp/`
 - copies `GoogleService-Info.plist` into `mobile-app/App/iosApp/iosApp/`
 
+## Current implementation notes
+
+- Android `GoogleSignInService` uses Credential Manager and exchanges the Google ID token with Firebase Auth before calling the mobile profile endpoints.
+- iOS and JVM currently return dev-only stub users when `AUTH_MODE=dev` and otherwise fail with a not-implemented error.
+- The app config is generated from `composeApp/env/*.properties` and includes `AUTH_MODE`, Firebase keys, and `GOOGLE_WEB_CLIENT_ID`.
+
 ## Checklist
 
 - [ ] Register all 3 Android package names in Firebase
@@ -194,5 +216,6 @@ The injector now:
 - [ ] Copy Web Client ID to `secrets/runtime/repositories/mobile-app/*.env`
 - [ ] Generate release keystore for production builds
 - [ ] Re-run `node secrets/scripts/prepare-runtime-secrets.mjs <env> mobile-app`
-- [ ] Set `TEAM_ID` in iOS `Config.xcconfig`
+- [ ] Complete native iOS Firebase sign-in implementation if `AUTH_MODE=firebase` is required there
+- [ ] Complete desktop OAuth flow if desktop needs non-dev authentication
 
