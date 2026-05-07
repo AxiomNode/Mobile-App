@@ -34,6 +34,53 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
       - name: Ensure Gradle wrapper is executable
         run: chmod +x gradlew
+      - name: Prepare Firebase placeholder for CI
+        run: |
+          cat > androidApp/google-services.json <<'JSON'
+          {
+            "project_info": {
+              "project_number": "000000000000",
+              "project_id": "axiomnode-ci",
+              "storage_bucket": "axiomnode-ci.appspot.com"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:000000000000:android:devci",
+                  "android_client_info": {
+                    "package_name": "es.sebas1705.axiomnode.dev"
+                  }
+                },
+                "oauth_client": [],
+                "api_key": [{ "current_key": "ci-placeholder" }],
+                "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+              },
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:000000000000:android:stgci",
+                  "android_client_info": {
+                    "package_name": "es.sebas1705.axiomnode.stg"
+                  }
+                },
+                "oauth_client": [],
+                "api_key": [{ "current_key": "ci-placeholder" }],
+                "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+              },
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:000000000000:android:prodci",
+                  "android_client_info": {
+                    "package_name": "es.sebas1705.axiomnode"
+                  }
+                },
+                "oauth_client": [],
+                "api_key": [{ "current_key": "ci-placeholder" }],
+                "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+              }
+            ],
+            "configuration_version": "1"
+          }
+          JSON
       - name: Run shared JVM tests
         run: ./gradlew --no-daemon :composeApp:jvmTest
       - name: Run Android lint
