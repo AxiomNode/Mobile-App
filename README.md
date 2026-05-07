@@ -1,6 +1,6 @@
 # mobile-app
 
-Last updated: 2026-05-03.
+Last updated: 2026-05-08.
 
 Mobile client application workspace for AxiomNode.
 
@@ -17,6 +17,8 @@ Mobile client application workspace for AxiomNode.
 `mobile-app` is a client repository, not part of the Kubernetes runtime plane.
 
 Its stable backend dependency is the public edge contract exposed by `api-gateway`. It should not depend on direct knowledge of BFF or microservice hostnames.
+
+Current platform status: Android/shared KMP validation is covered by repository CI, while backend runtime rollout remains outside this repository and is handled by the service repos plus `platform-infra`.
 
 ## Runtime surface
 
